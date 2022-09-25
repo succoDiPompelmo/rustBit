@@ -13,4 +13,4 @@ Cargo.lock
 *.mkv
 
 # All torrents items
-*.torrent
+/torrent_files/*.torrent
