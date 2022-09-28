@@ -1,12 +1,16 @@
-use std::cmp;
 use sha1::{Digest, Sha1};
-use std::{thread, time};
+use std::cmp;
 use std::time::Duration;
+use std::time;
 
-use crate::messages::ContentType;
+use std::sync::mpsc::{Sender, Receiver};
+use std::sync::mpsc;
+use std::thread;
+
 use crate::messages::extension::ExtensionMessage;
 use crate::messages::handshake;
 use crate::messages::request::RequestMessage;
+use crate::messages::ContentType;
 use crate::peer::Peer;
 use crate::torrent::torrent::{Info, Torrent};
 use crate::torrent::writer::get_file_writers;
@@ -81,7 +85,7 @@ impl Manager {
         Ok(())
     }
 
-    fn manage_info(&mut self, torrent: &mut Torrent) -> Result<(), &'static str> {
+    fn manage_info(&mut self) -> Result<Info, &'static str> {
         let tot_info_pieces = (0..self.peer.get_metadata_size()).step_by(16384).len();
 
         if self.info_buffer.len() == tot_info_pieces {
@@ -90,8 +94,11 @@ impl Manager {
             for info_message in &self.info_buffer {
                 info.extend(info_message.get_data());
             }
-            torrent.set_info(Info::from_bytes(info).unwrap());
-        } else {
+            let info_2 = Info::from_bytes(info).unwrap();
+            return Ok(info_2);
+        };
+
+        if self.info_buffer_ids.len() != tot_info_pieces {
             println!("SEND METADATA REQUEST");
             // If we finish the piece but we have not yet concluded the info download here
             // we will get an error of No piece available. DA CAMBIARE COMUNQUE FA SCHIFO.
@@ -102,29 +109,25 @@ impl Manager {
                 .get_stream()
                 .send_metadata_request(extension_id, piece);
             self.info_buffer_ids.push(piece);
-        }
+            return Err("No info ready");
+        };
 
-        Ok(())
+        Err("Generic Error")
     }
 
-    fn manage_request(&mut self, torrent: &mut Torrent) {
+    fn manage_request(&mut self, default_piece_length: usize, total_length: usize) -> Result<Vec<u8>, &'static str> {
         let block_size = 16384;
 
-        let piece_length = torrent.get_piece_length().unwrap();
-        let torrent_total_length = torrent.get_total_length().unwrap();
-
-        if self.block_buffer.len() * block_size >= piece_length {
-            make_piece(self, torrent).unwrap();
+        if self.block_buffer.len() * block_size >= default_piece_length {
+            let piece = make_piece(self);
 
             self.piece_index_request = self.piece_index_request + 1;
             self.block_buffer.clear();
 
-            if self.piece_index_request * piece_length >= torrent_total_length {
-                return;
-            }
+            return Ok(piece);
         } else {
-            let remainder = torrent_total_length
-                - (piece_length * self.piece_index_request + block_size * self.block_buffer.len());
+            let remainder = total_length
+                - (default_piece_length * self.piece_index_request + block_size * self.block_buffer.len());
             let expecetd_block_size = cmp::min(remainder, block_size);
 
             let piece_index_request_u32 = self.piece_index_request as u32;
@@ -136,21 +139,14 @@ impl Manager {
             );
 
             self.is_block_downloading = true;
+
+            return Err("Piece still not completed");
         }
     }
 }
 
-pub fn download(
-    peers_info: Vec<PeerConnectionInfo>,
-    peer_id: &str,
-    torrent: &mut Torrent,
-) -> Result<(), &'static str> {
-    let peer = get_peer(peers_info, peer_id, torrent)
-        .ok_or("No peers concluded an handshake with success")?;
-    let mut manager = Manager::new(peer);
-
-    println!("START DOWNLOADING");
-
+// Perform all the required checks before the download can start.
+fn init_download(manager: &mut Manager) -> Result<Info, &'static str> {
     loop {
         manager.manage_inbound_messages();
 
@@ -160,73 +156,81 @@ pub fn download(
             continue;
         }
 
-        if torrent.get_info().is_err() && manager.get_peer().get_metadata_size() != 0 {
-            manager.manage_info(torrent);
-        }
-
-        if torrent.get_info().is_ok() && !manager.is_block_downloading() {
-            manager.manage_request(torrent);
+        if manager.get_peer().get_metadata_size() != 0 {
+            if let Ok(info) = manager.manage_info() {
+                return Ok(info)
+            }
         }
     }
+}
 
-    return Ok(());
+fn download_piece(manager: &mut Manager, info: Info) {
+    loop {
+        manager.manage_inbound_messages();
+            
+        if manager.is_block_downloading() {
+            continue
+        }
+
+        if let Ok(piece) = manager.manage_request(info.get_piece_length(), info.get_total_length()) {
+            get_file_writers(
+                info.get_files().unwrap(),
+                piece,
+                (manager.get_piece_index_request() - 1) as u32,
+                info.get_piece_length() as u32,
+            ).iter().for_each(|writer| writer.write_to_filesystem());
+        }
+    }
+}
+
+pub fn download(
+    peers_info: Vec<PeerConnectionInfo>,
+    peer_id: &str,
+    torrent: &mut Torrent,
+) -> Result<(), &'static str> {
+
+    let (tx, rx): (Sender<Info>, Receiver<Info>) = mpsc::channel();
+
+    let mut peer = get_peer(peers_info, peer_id, torrent.get_info_hash())
+        .ok_or("No peers concluded an handshake with success")?;
+
+    let handle = thread::spawn(move || {
+        let mut manager = Manager::new(peer);
+
+        let info = init_download(&mut manager).unwrap();
+        tx.send(info.clone()).unwrap();
+        download_piece(&mut manager, info);
+    });
+
+    // loop {
+    //     let info = rx.recv();
+    // }
+
+    handle.join();
+
+    Ok(())
 }
 
 pub fn get_peer<'arr>(
     peers_info: Vec<PeerConnectionInfo>,
     peer_id: &str,
-    torrent: &Torrent,
+    info_hash: Vec<u8>,
 ) -> Option<Peer> {
     for peer_info in peers_info {
-        if let Ok(stream) = handshake::perform(peer_info, &torrent.get_info_hash(), peer_id) {
+        if let Ok(stream) = handshake::perform(peer_info, &info_hash, peer_id) {
             return Some(Peer::new(stream));
         }
     }
     return None;
 }
 
-fn make_piece(manager: &mut Manager, torrent: &Torrent) -> Result<(), &'static str> {
+fn make_piece(manager: &mut Manager) -> Vec<u8> {
     let mut piece: Vec<u8> = vec![];
 
     for block_message in manager.get_block_buffer() {
         piece.extend(&block_message.get_block_data());
     }
-
-    if verify_piece(&piece, torrent, manager.get_piece_index_request()) {
-        write_piece(torrent, &piece, manager.get_piece_index_request());
-        Ok(())
-    } else {
-        println!("Piece doesn't corresponde to pieces hash");
-        return Err("Wrong piece");
-    }
-}
-
-pub fn write_piece(
-    torrent: &Torrent,
-    piece: &Vec<u8>,
-    piece_index_request: usize,
-) -> Result<(), &'static str> {
-    let file_writers = get_file_writers(
-        torrent.get_files()?,
-        piece.to_vec(),
-        piece_index_request as u32,
-        torrent.get_piece_length()? as u32,
-    );
-
-    for writer in file_writers {
-        writer.write_to_filesystem();
-    }
-
-    Ok(())
-}
-
-pub fn verify_piece(piece: &Vec<u8>, torrent: &Torrent, piece_index_request: usize) -> bool {
-    let piece_verifier = Sha1::digest(&piece).as_slice().to_owned();
-    if let Ok(piece) = torrent.get_piece(piece_index_request) {
-        piece_verifier == piece
-    } else {
-        false
-    }
+    piece
 }
 
 fn choose_piece_to_download(
@@ -246,7 +250,6 @@ fn choose_piece_to_download(
 
         if !already_downloaded && !manager.get_info_buffer_ids().contains(&piece_index) {
             if let Some(extension_id) = manager.get_peer().get_extension_id("ut_metadata") {
-                println!("Sent metadata request for index {:?}", piece_index);
                 return Ok(piece_index);
             }
         }

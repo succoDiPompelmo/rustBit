@@ -122,7 +122,8 @@ pub fn get_file_writers(
                 file.get_path(),
                 fileParser.get_start_file_index(file_length),
                 fileParser.get_end_file_index(file_length),
-                piece[fileParser.get_start_piece_index()..fileParser.get_end_piece_index()].to_vec(),
+                piece[fileParser.get_start_piece_index()..fileParser.get_end_piece_index()]
+                    .to_vec(),
             ));
 
             if fileParser.is_piece_finished() {

@@ -55,7 +55,12 @@ mod test {
 
     #[test]
     fn test_from_bytes_send_request() {
-        let input = [(1 as u32).to_be_bytes(), (2 as u32).to_be_bytes(), (3 as u32).to_be_bytes()].concat();
+        let input = [
+            (1 as u32).to_be_bytes(),
+            (2 as u32).to_be_bytes(),
+            (3 as u32).to_be_bytes(),
+        ]
+        .concat();
 
         let outcome = RequestMessage::from_bytes(&input);
         assert_eq!((3 as u32).to_be_bytes().to_vec(), outcome.get_block_data());
@@ -66,7 +71,12 @@ mod test {
     #[test]
     fn test_from_bytes_recieve_request() {
         let data = vec![0x00, 0x32, 0x01, 0x0C];
-        let input = [(9 as u32).to_be_bytes().to_vec(), (10 as u32).to_be_bytes().to_vec(), data.to_vec()].concat();
+        let input = [
+            (9 as u32).to_be_bytes().to_vec(),
+            (10 as u32).to_be_bytes().to_vec(),
+            data.to_vec(),
+        ]
+        .concat();
 
         let outcome = RequestMessage::from_bytes(&input);
         assert_eq!(data, outcome.get_block_data());

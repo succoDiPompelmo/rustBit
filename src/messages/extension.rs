@@ -4,7 +4,6 @@ use crate::bencode::decode::Decoder;
 use crate::bencode::encode::Encode;
 use crate::bencode::metainfo;
 
-
 #[derive(Debug, Clone)]
 pub struct ExtensionMessage {
     id: u8,
@@ -105,7 +104,10 @@ mod test {
 
         let outcome = ExtensionMessage::from_bytes(&input);
         assert_eq!(Some(1024), outcome.get_metadata_size());
-        assert_eq!(&HashMap::from([("foo".to_owned(), 2)]), outcome.get_extensions());
+        assert_eq!(
+            &HashMap::from([("foo".to_owned(), 2)]),
+            outcome.get_extensions()
+        );
         assert_eq!(true, outcome.get_data().is_empty());
         assert_eq!(None, outcome.get_msg_type());
     }
@@ -114,7 +116,12 @@ mod test {
     fn test_from_bytes_data() {
         let id: u8 = 20;
         let data: Vec<u8> = vec![0x11, 0x22];
-        let input = [vec![id], b"d8:msg_typei1e5:piecei2ee".to_vec(), data.to_vec()].concat();
+        let input = [
+            vec![id],
+            b"d8:msg_typei1e5:piecei2ee".to_vec(),
+            data.to_vec(),
+        ]
+        .concat();
 
         let outcome = ExtensionMessage::from_bytes(&input);
         assert_eq!(None, outcome.get_metadata_size());

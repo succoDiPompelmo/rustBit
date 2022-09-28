@@ -112,7 +112,10 @@ mod test {
 
     #[test]
     fn get_list_content_test() {
-        let list_content = vec![Metainfo::Integer(12), Metainfo::String("ciao".as_bytes().to_vec())];
+        let list_content = vec![
+            Metainfo::Integer(12),
+            Metainfo::String("ciao".as_bytes().to_vec()),
+        ];
         let input = Metainfo::List(list_content.clone());
         let output = get_list_content(&input);
         let expected_output = Ok(&list_content);

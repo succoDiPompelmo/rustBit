@@ -14,15 +14,6 @@ pub struct Torrent {
     info_hash: Vec<u8>,
 }
 
-#[derive(Debug, PartialEq)]
-pub struct Info {
-    files: Option<Vec<File>>,
-    length: Option<usize>,
-    name: String,
-    piece_length: usize,
-    pieces: Vec<u8>,
-}
-
 impl Torrent {
     pub fn from_metainfo(a: &Metainfo) -> Result<Torrent, &'static str> {
         let announce = metainfo::get_string_from_dict(a, "announce")?;
@@ -137,6 +128,15 @@ fn announce_list_from_metainfo(announce_list_metainfo: &Vec<Metainfo>) -> Vec<Ve
     announce_list
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct Info {
+    files: Option<Vec<File>>,
+    length: Option<usize>,
+    name: String,
+    piece_length: usize,
+    pieces: Vec<u8>,
+}
+
 impl Info {
     pub fn from_bytes(bytes: Vec<u8>) -> Result<Info, &'static str> {
         let decoded_info = Decoder::init(bytes).decode();
@@ -174,6 +174,44 @@ impl Info {
 
     pub fn get_piece_length(&self) -> usize {
         return self.piece_length;
+    }
+
+    pub fn get_piece(&self, index: usize) -> Result<Vec<u8>, &'static str> {
+        let pieces = &self.pieces;
+        Ok(pieces
+            .chunks_exact(20)
+            .nth(index)
+            .expect("msg: &str")
+            .to_vec())
+    }
+
+    pub fn get_total_length(&self) -> usize {
+        match &self.files {
+            Some(files) => {
+                let sum = files.iter().map(|file| file.get_length()).sum::<usize>();
+                return sum;
+            }
+            None => self.length.unwrap(),
+        }
+    }
+
+    pub fn get_files(&self) -> Result<Vec<File>, &'static str> {
+        match &self.files {
+            Some(files) => Ok(files.to_vec()),
+            None => {
+                let file = File::new(vec![self.name.to_owned()], self.length.unwrap());
+                Ok(vec![file])
+            }
+        }
+    }
+
+    pub fn verify_piece(&self, piece: &Vec<u8>, piece_idx: usize) -> bool {
+        let piece_verifier = Sha1::digest(piece).as_slice().to_owned();
+        if let Ok(piece) = self.get_piece(piece_idx) {
+            piece_verifier == piece
+        } else {
+            false
+        }
     }
 }
 
