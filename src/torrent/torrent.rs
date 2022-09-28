@@ -47,64 +47,14 @@ impl Torrent {
         })
     }
 
-    pub fn get_announce(&self) -> String {
-        return self.announce.to_string();
-    }
-
     pub fn get_info_hash(&self) -> Vec<u8> {
         return self.info_hash.to_vec();
-    }
-
-    pub fn get_piece_length(&self) -> Result<usize, &'static str> {
-        Ok(self.get_info()?.get_piece_length())
-    }
-
-    pub fn get_piece(&self, index: usize) -> Result<Vec<u8>, &'static str> {
-        let pieces = &self.get_info()?.pieces;
-        Ok(pieces
-            .chunks_exact(20)
-            .nth(index)
-            .expect("msg: &str")
-            .to_vec())
     }
 
     pub fn get_announce_list(&self) -> Vec<String> {
         match &self.announce_list {
             Some(announce_list) => announce_list.to_owned().into_iter().flatten().collect(),
             None => vec![self.announce.to_owned()],
-        }
-    }
-
-    pub fn get_files(&self) -> Result<Vec<File>, &'static str> {
-        let info = self.get_info()?;
-        match &info.files {
-            Some(files) => Ok(files.to_vec()),
-            None => {
-                let file = File::new(vec![info.name.to_owned()], info.length.unwrap());
-                Ok(vec![file])
-            }
-        }
-    }
-
-    pub fn get_info(&self) -> Result<&Info, &'static str> {
-        match &self.info {
-            Some(info) => Ok(info),
-            None => Err("No info data present"),
-        }
-    }
-
-    pub fn set_info(&mut self, info: Info) {
-        self.info = Some(info);
-    }
-
-    pub fn get_total_length(&self) -> Result<usize, &'static str> {
-        let info = self.get_info()?;
-        match &info.files {
-            Some(files) => {
-                let sum = files.iter().map(|file| file.get_length()).sum::<usize>();
-                return Ok(sum);
-            }
-            None => Ok(info.length.ok_or("Noe length")?),
         }
     }
 }
@@ -176,15 +126,6 @@ impl Info {
         return self.piece_length;
     }
 
-    pub fn get_piece(&self, index: usize) -> Result<Vec<u8>, &'static str> {
-        let pieces = &self.pieces;
-        Ok(pieces
-            .chunks_exact(20)
-            .nth(index)
-            .expect("msg: &str")
-            .to_vec())
-    }
-
     pub fn get_total_length(&self) -> usize {
         match &self.files {
             Some(files) => {
@@ -202,15 +143,6 @@ impl Info {
                 let file = File::new(vec![self.name.to_owned()], self.length.unwrap());
                 Ok(vec![file])
             }
-        }
-    }
-
-    pub fn verify_piece(&self, piece: &Vec<u8>, piece_idx: usize) -> bool {
-        let piece_verifier = Sha1::digest(piece).as_slice().to_owned();
-        if let Ok(piece) = self.get_piece(piece_idx) {
-            piece_verifier == piece
-        } else {
-            false
         }
     }
 }
@@ -338,7 +270,7 @@ mod test {
     fn encode_info() {
         let file = File::new(vec!["/bin".to_owned()], 234);
 
-        let mut info = Info {
+        let info = Info {
             name: "pippo".to_owned(),
             piece_length: 43921,
             pieces: "ABCDE".as_bytes().to_vec(),

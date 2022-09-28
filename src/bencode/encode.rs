@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::str;
 
 pub trait Encode {
     fn encode(&self) -> Vec<u8>;
@@ -79,6 +78,7 @@ pub fn encode_dict_entry(key: &String, value: &impl Encode) -> Vec<u8> {
     }
 }
 
+#[cfg(test)]
 mod test {
 
     use super::*;

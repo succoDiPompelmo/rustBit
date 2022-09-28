@@ -1,6 +1,5 @@
 use std::io::prelude::*;
 use std::net::TcpStream;
-use std::time::Duration;
 use std::{thread, time};
 
 use crate::messages::{new_interested, new_metadata, new_request, ContentType, Message};
@@ -64,23 +63,23 @@ impl PeerStream {
     }
 
     pub fn send_interested(&mut self) {
-        let bytes_written = self
+        self
             .stream
             .write(&new_interested().as_bytes())
-            .or_else(|_| return Err("Error in interested request"));
+            .or_else(|_| return Err("Error in interested request")).unwrap();
     }
 
     pub fn send_request(&mut self, block_length: u32, block_offset: u32, piece_index: u32) {
-        let bytes_written = self
+        self
             .stream
             .write(&new_request(piece_index, block_offset, block_length).as_bytes())
-            .or_else(|_| return Err("Error in piece request"));
+            .or_else(|_| return Err("Error in piece request")).unwrap();
     }
 
     pub fn send_metadata_request(&mut self, extension_id: u8, index: usize) {
-        let bytes_written = self
+        self
             .stream
             .write(&new_metadata(extension_id, index).as_bytes())
-            .or_else(|_| return Err("Error in metadata request"));
+            .or_else(|_| return Err("Error in metadata request")).unwrap();
     }
 }

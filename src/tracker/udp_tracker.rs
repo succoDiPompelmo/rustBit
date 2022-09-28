@@ -19,9 +19,9 @@ pub fn get_tracker(
         peer_id.as_bytes(),
         info_hash.as_slice(),
     );
-    send_upd_packet(&socket, message, tracker_hostname);
+    send_upd_packet(&socket, message, tracker_hostname)?;
 
-    socket.set_read_timeout(Some(Duration::new(10, 0)));
+    socket.set_read_timeout(Some(Duration::new(10, 0))).unwrap();
     let mut annouce_buf: [u8; 4000] = [0x00; 4000];
 
     let resp_size = read_upd_packet(&socket, &mut annouce_buf)?;
@@ -47,7 +47,7 @@ fn connect_to_tracker(
     let mut buf: [u8; 16] = [0x00; 16];
 
     for _ in 1..5 {
-        send_upd_packet(&socket, message, tracker_hostname);
+        send_upd_packet(&socket, message, tracker_hostname)?;
         if read_upd_packet(&socket, &mut buf).is_ok() {
             return Ok(buf[8..].to_vec());
         }
@@ -57,7 +57,7 @@ fn connect_to_tracker(
 }
 
 fn read_upd_packet(socket: &UdpSocket, buffer: &mut [u8]) -> Result<usize, &'static str> {
-    socket.set_read_timeout(Some(Duration::new(10, 0)));
+    socket.set_read_timeout(Some(Duration::new(10, 0))).unwrap();
 
     let (resp_size, _) = socket
         .recv_from(buffer)

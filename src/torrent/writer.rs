@@ -1,6 +1,5 @@
 use std::cmp;
 use std::fs;
-use std::fs::OpenOptions;
 use std::os::unix::prelude::FileExt;
 
 use crate::torrent::file::File;
@@ -30,22 +29,20 @@ impl FileWriter {
         let prefix = path.parent().unwrap();
         std::fs::create_dir_all(prefix).unwrap();
 
-        let mut file = fs::OpenOptions::new()
+        let file = fs::OpenOptions::new()
             .write(true)
             .append(true)
             .create(true)
             .open(path)
             .unwrap();
 
-        file.write_at(&self.piece, self.start as u64);
+        file.write_at(&self.piece, self.start as u64).unwrap();
     }
 }
 
 struct FileParser {
     piece_length: u32,
-    piece_index: u32,
     offset: u32,
-    default_piece_length: u32,
     start_file_index: u32,
     end_file_index: u32,
     right_file_boundary: u32,
@@ -55,9 +52,7 @@ impl FileParser {
     fn new(piece_length: u32, piece_index: u32, default_piece_length: u32) -> FileParser {
         let offset = piece_index * default_piece_length;
         FileParser {
-            piece_index,
             piece_length,
-            default_piece_length,
             offset,
             start_file_index: offset,
             right_file_boundary: 0,
@@ -108,26 +103,26 @@ pub fn get_file_writers(
     piece_index: u32,
     torrent_piece_length: u32,
 ) -> Vec<FileWriter> {
-    let mut fileParser = FileParser::new(piece.len() as u32, piece_index, torrent_piece_length);
+    let mut file_parser = FileParser::new(piece.len() as u32, piece_index, torrent_piece_length);
     let mut files_to_write = vec![];
 
     for file in files {
         let file_length = file.get_length() as u32;
-        fileParser.update_right_file_boundary(file_length);
+        file_parser.update_right_file_boundary(file_length);
 
-        if fileParser.is_piece_in_file() {
-            fileParser.update_end_file_index();
+        if file_parser.is_piece_in_file() {
+            file_parser.update_end_file_index();
 
             files_to_write.push(FileWriter::new(
                 file.get_path(),
-                fileParser.get_start_file_index(file_length),
-                fileParser.get_end_file_index(file_length),
-                piece[fileParser.get_start_piece_index()..fileParser.get_end_piece_index()]
+                file_parser.get_start_file_index(file_length),
+                file_parser.get_end_file_index(file_length),
+                piece[file_parser.get_start_piece_index()..file_parser.get_end_piece_index()]
                     .to_vec(),
             ));
 
-            if fileParser.is_piece_finished() {
-                fileParser.update_start_file_index()
+            if file_parser.is_piece_finished() {
+                file_parser.update_start_file_index()
             } else {
                 return files_to_write;
             }

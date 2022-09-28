@@ -190,6 +190,7 @@ mod test {
         );
     }
 
+    #[test]
     fn decode_double_content() {
         let mut decoder = Decoder::init("d3:fooi32eed3:bar3:booe".as_bytes().to_vec());
         let first_output = decoder.decode();
@@ -202,10 +203,10 @@ mod test {
         let second_output = decoder.decode();
 
         assert_eq!(
-            first_output,
+            second_output,
             Metainfo::Dictionary(HashMap::from([(
                 "bar".to_owned(),
-                Metainfo::String("bar".to_owned().as_bytes().to_vec())
+                Metainfo::String("boo".to_owned().as_bytes().to_vec())
             )]))
         );
     }

@@ -1,11 +1,9 @@
-use crate::bencode::decode::Decoder;
-use crate::tracker::tracker::Tracker;
+use std::io::prelude::*;
 use std::time::Duration;
 
+use crate::bencode::decode::Decoder;
 use crate::bencode::metainfo;
-
-use std::fs::File;
-use std::io::prelude::*;
+use crate::tracker::tracker::Tracker;
 
 pub fn get_tracker(
     info_hash: &Vec<u8>,
@@ -42,7 +40,7 @@ fn from_metainfo(metainfo: metainfo::Metainfo) -> Result<Tracker, &'static str> 
 fn get_peers(url: String) -> Result<Vec<u8>, &'static str> {
     let respone = call_tracker_for_peers(url)?;
     let mut bytes = vec![];
-    respone.into_reader().read_to_end(&mut bytes);
+    respone.into_reader().read_to_end(&mut bytes).unwrap();
     return Ok(bytes);
 }
 
@@ -60,7 +58,7 @@ fn call_tracker_for_peers(url: String) -> Result<ureq::Response, &'static str> {
             .call();
 
         match response_result {
-            Err(err) => (),
+            Err(_) => (),
             Ok(response) => return Ok(response),
         }
     }

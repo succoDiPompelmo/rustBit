@@ -1,11 +1,8 @@
-use sha1::{Digest, Sha1};
 use std::cmp;
-use std::time::Duration;
-use std::time;
-
 use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc;
 use std::thread;
+use std::time;
 
 use crate::messages::extension::ExtensionMessage;
 use crate::messages::handshake;
@@ -23,7 +20,7 @@ struct Manager {
     piece_index_request: usize,
     block_buffer: Vec<RequestMessage>,
     is_block_downloading: bool,
-    block_size: usize,
+    // block_size: usize,
 }
 
 impl Manager {
@@ -35,7 +32,7 @@ impl Manager {
             piece_index_request: 0,
             block_buffer: vec![],
             is_block_downloading: false,
-            block_size: 16384,
+            // block_size: 16384,
         }
     }
 
@@ -148,7 +145,7 @@ impl Manager {
 // Perform all the required checks before the download can start.
 fn init_download(manager: &mut Manager) -> Result<Info, &'static str> {
     loop {
-        manager.manage_inbound_messages();
+        manager.manage_inbound_messages()?;
 
         if manager.get_peer().is_choked() {
             thread::sleep(time::Duration::from_secs(1));
@@ -164,9 +161,9 @@ fn init_download(manager: &mut Manager) -> Result<Info, &'static str> {
     }
 }
 
-fn download_piece(manager: &mut Manager, info: Info) {
+fn download_piece(manager: &mut Manager, info: Info) -> Result<(), &'static str> {
     loop {
-        manager.manage_inbound_messages();
+        manager.manage_inbound_messages()?;
             
         if manager.is_block_downloading() {
             continue
@@ -189,9 +186,9 @@ pub fn download(
     torrent: &mut Torrent,
 ) -> Result<(), &'static str> {
 
-    let (tx, rx): (Sender<Info>, Receiver<Info>) = mpsc::channel();
+    let (tx, _): (Sender<Info>, Receiver<Info>) = mpsc::channel();
 
-    let mut peer = get_peer(peers_info, peer_id, torrent.get_info_hash())
+    let peer = get_peer(peers_info, peer_id, torrent.get_info_hash())
         .ok_or("No peers concluded an handshake with success")?;
 
     let handle = thread::spawn(move || {
@@ -199,14 +196,14 @@ pub fn download(
 
         let info = init_download(&mut manager).unwrap();
         tx.send(info.clone()).unwrap();
-        download_piece(&mut manager, info);
+        download_piece(&mut manager, info).unwrap();
     });
 
     // loop {
     //     let info = rx.recv();
     // }
 
-    handle.join();
+    handle.join().unwrap();
 
     Ok(())
 }
@@ -249,7 +246,7 @@ fn choose_piece_to_download(
         }
 
         if !already_downloaded && !manager.get_info_buffer_ids().contains(&piece_index) {
-            if let Some(extension_id) = manager.get_peer().get_extension_id("ut_metadata") {
+            if manager.get_peer().get_extension_id("ut_metadata").is_some() {
                 return Ok(piece_index);
             }
         }

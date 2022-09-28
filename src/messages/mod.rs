@@ -3,10 +3,6 @@ pub mod handshake;
 pub mod interested;
 pub mod request;
 
-use std::io::prelude::*;
-use std::net::TcpStream;
-use std::time::Duration;
-
 use crate::messages::extension::ExtensionMessage;
 use crate::messages::interested::InterestedMessage;
 use crate::messages::request::RequestMessage;
@@ -50,10 +46,6 @@ impl Message {
             length,
             content,
         }
-    }
-
-    pub fn get_length(&self) -> u32 {
-        self.length
     }
 
     pub fn get_id(&self) -> u8 {

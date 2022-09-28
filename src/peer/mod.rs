@@ -73,10 +73,6 @@ impl Peer {
         self.bitfield = bitfield;
     }
 
-    pub fn is_piece_available(&self, piece_index: usize) -> bool {
-        self.bitfield[piece_index]
-    }
-
     pub fn get_stream(&mut self) -> &mut PeerStream {
         &mut self.stream
     }
@@ -88,16 +84,8 @@ impl Peer {
         }
     }
 
-    pub fn set_extension(&mut self, extensions: HashMap<String, u8>) {
-        self.extensions = extensions;
-    }
-
     pub fn get_metadata_size(&self) -> usize {
         self.metadata_size
-    }
-
-    pub fn set_metadata_size(&mut self, metadata_size: usize) {
-        self.metadata_size = metadata_size;
     }
 }
 

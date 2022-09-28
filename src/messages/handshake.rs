@@ -35,10 +35,6 @@ impl HandshakeMessage {
         }
     }
 
-    pub fn get_reserved_bytes(&self) -> Vec<u8> {
-        self.reserved_bytes.to_vec()
-    }
-
     pub fn get_info_hash(&self) -> Vec<u8> {
         self.info_hash.to_vec()
     }
@@ -64,7 +60,7 @@ pub fn perform(
     let server: SocketAddr = peer_url.parse().expect("Unable to parse socket address");
 
     let connect_timeout = Duration::from_secs(2);
-    let mut stream =
+    let stream =
         TcpStream::connect_timeout(&server, connect_timeout).or_else(|_| Err("Error"))?;
 
     send_handshake(&stream, info_hash, peer_id)?;
@@ -84,7 +80,7 @@ pub fn perform(
 fn read_handshake(mut stream: &TcpStream) -> Result<HandshakeMessage, &'static str> {
     let mut buffer: [u8; 68] = [0x00; 68];
 
-    stream.set_read_timeout(Some(Duration::from_millis(500)));
+    stream.set_read_timeout(Some(Duration::from_millis(500))).unwrap();
     match stream.read(&mut buffer) {
         Ok(68) => Ok(HandshakeMessage::from_bytes(buffer)),
         _ => Err("Error reading handshake response"),

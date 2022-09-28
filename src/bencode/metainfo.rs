@@ -90,6 +90,7 @@ pub fn get_list_from_dict<'a>(
     }
 }
 
+#[cfg(test)]
 mod test {
 
     use super::*;
