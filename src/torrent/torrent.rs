@@ -122,6 +122,18 @@ impl Info {
         });
     }
 
+    pub fn get_piece(&self, index: usize) -> Vec<u8> {
+        self.pieces
+            .chunks_exact(20)
+            .nth(index)
+            .expect("No piece at the provided index")
+            .to_vec()
+    }
+
+    pub fn verify_piece(&self, piece: &Vec<u8>, piece_idx: usize) -> bool {
+        Sha1::digest(piece).as_slice().to_owned() == self.get_piece(piece_idx)
+    }
+
     pub fn get_piece_length(&self) -> usize {
         return self.piece_length;
     }
@@ -134,6 +146,10 @@ impl Info {
             }
             None => self.length.unwrap(),
         }
+    }
+
+    pub fn get_total_pieces(&self) -> usize {
+        (0..self.get_total_length()).step_by(self.get_piece_length()).len()
     }
 
     pub fn get_files(&self) -> Result<Vec<File>, &'static str> {

@@ -17,10 +17,10 @@ struct Manager {
     info_buffer: Vec<ExtensionMessage>,
     info_buffer_ids: Vec<usize>,
     peer: Peer,
-    piece_index_request: usize,
+    default_piece_length: usize,
     block_buffer: Vec<RequestMessage>,
     is_block_downloading: bool,
-    // block_size: usize,
+    block_size: usize,
 }
 
 impl Manager {
@@ -29,11 +29,15 @@ impl Manager {
             info_buffer: vec![],
             info_buffer_ids: vec![],
             peer,
-            piece_index_request: 0,
+            default_piece_length: 0,
             block_buffer: vec![],
             is_block_downloading: false,
-            // block_size: 16384,
+            block_size: 16384,
         }
+    }
+
+    fn reset_block(&mut self) {
+        self.block_buffer.clear();
     }
 
     fn get_info_buffer(&mut self) -> &mut Vec<ExtensionMessage> {
@@ -56,8 +60,16 @@ impl Manager {
         self.is_block_downloading
     }
 
-    fn get_piece_index_request(&self) -> usize {
-        self.piece_index_request
+    fn set_default_piece_length(&mut self, length: usize) {
+        self.default_piece_length = length;
+    }
+
+    fn get_default_piece_length(&self) -> usize {
+        self.default_piece_length
+    }
+
+    fn is_piece_complete(&self) -> bool {
+        self.block_buffer.len() * self.block_size >= self.default_piece_length
     }
 
     fn manage_inbound_messages(&mut self) -> Result<(), &'static str> {
@@ -112,33 +124,10 @@ impl Manager {
         Err("Generic Error")
     }
 
-    fn manage_request(&mut self, default_piece_length: usize, total_length: usize) -> Result<Vec<u8>, &'static str> {
-        let block_size = 16384;
-
-        if self.block_buffer.len() * block_size >= default_piece_length {
-            let piece = make_piece(self);
-
-            self.piece_index_request = self.piece_index_request + 1;
-            self.block_buffer.clear();
-
-            return Ok(piece);
-        } else {
-            let remainder = total_length
-                - (default_piece_length * self.piece_index_request + block_size * self.block_buffer.len());
-            let expecetd_block_size = cmp::min(remainder, block_size);
-
-            let piece_index_request_u32 = self.piece_index_request as u32;
-            let block_buffer_size = self.block_buffer.len();
-            self.peer.get_stream().send_request(
-                expecetd_block_size as u32,
-                (block_buffer_size * block_size) as u32,
-                piece_index_request_u32,
-            );
-
-            self.is_block_downloading = true;
-
-            return Err("Piece still not completed");
-        }
+    fn get_block_size(&self, info: &Info, piece_idx: usize) -> u32 {
+        let remainder = info.get_total_length()
+                - (self.get_default_piece_length() * piece_idx + self.block_size * self.block_buffer.len());
+        cmp::min(remainder, self.block_size) as u32
     }
 }
 
@@ -161,7 +150,7 @@ fn init_download(manager: &mut Manager) -> Result<Info, &'static str> {
     }
 }
 
-fn download_piece(manager: &mut Manager, info: Info) -> Result<(), &'static str> {
+fn download_piece(manager: &mut Manager, info: &Info, piece_idx: usize) -> Result<(), &'static str> {
     loop {
         manager.manage_inbound_messages()?;
             
@@ -169,13 +158,53 @@ fn download_piece(manager: &mut Manager, info: Info) -> Result<(), &'static str>
             continue
         }
 
-        if let Ok(piece) = manager.manage_request(info.get_piece_length(), info.get_total_length()) {
+        if manager.is_piece_complete() {
+            let mut piece: Vec<u8> = vec![];
+
+            for block_message in manager.get_block_buffer() {
+                piece.extend(&block_message.get_block_data());
+            }
+
+            if !info.verify_piece(&piece, piece_idx) {
+                return Err("Error in piece verification")
+            }
+
+            manager.reset_block();
+
             get_file_writers(
                 info.get_files().unwrap(),
                 piece,
-                (manager.get_piece_index_request() - 1) as u32,
+                piece_idx as u32,
                 info.get_piece_length() as u32,
             ).iter().for_each(|writer| writer.write_to_filesystem());
+            return Ok(())
+        }
+        
+        let expecetd_block_size = manager.get_block_size(&info, piece_idx);
+        let block_buffer_size = manager.block_buffer.len();
+
+        manager.peer.get_stream().send_request(
+            expecetd_block_size,
+            (block_buffer_size * manager.block_size) as u32,
+            piece_idx as u32,
+        );
+
+        manager.is_block_downloading = true;
+    }
+}
+
+fn peer_thread(peer: Peer, tx: Sender<Info>, piece_rx: Receiver<usize>) {
+    let mut manager = Manager::new(peer);
+    let info = init_download(&mut manager).unwrap();
+    manager.set_default_piece_length(info.get_piece_length());
+    tx.send(info.clone()).unwrap();
+
+    loop {
+        if let Ok(piece_idx) = piece_rx.recv() {
+            println!("{:?}", piece_idx);
+            download_piece(&mut manager, &info, piece_idx).unwrap();
+        } else {
+            return
         }
     }
 }
@@ -186,24 +215,24 @@ pub fn download(
     torrent: &mut Torrent,
 ) -> Result<(), &'static str> {
 
-    let (tx, _): (Sender<Info>, Receiver<Info>) = mpsc::channel();
+    let (tx, rx): (Sender<Info>, Receiver<Info>) = mpsc::channel();
+    let (piece_tx, piece_rx): (Sender<usize>, Receiver<usize>) = mpsc::channel();
 
     let peer = get_peer(peers_info, peer_id, torrent.get_info_hash())
         .ok_or("No peers concluded an handshake with success")?;
 
-    let handle = thread::spawn(move || {
-        let mut manager = Manager::new(peer);
+    let handle = thread::spawn(|| peer_thread(peer, tx, piece_rx));
+    if let Ok(info) = rx.recv() {
+        println!("INFO RECIEVED {:?}", info.get_piece_length());
+        for piece_idx in 0..info.get_total_pieces() {
+            piece_tx.send(piece_idx).unwrap(); 
+        } 
+    }
 
-        let info = init_download(&mut manager).unwrap();
-        tx.send(info.clone()).unwrap();
-        download_piece(&mut manager, info).unwrap();
-    });
-
-    // loop {
-    //     let info = rx.recv();
-    // }
-
-    handle.join().unwrap();
+    match handle.join() {
+        Err(err) => println!("{:?}", err),
+        Ok(_) => ()
+    };
 
     Ok(())
 }
@@ -219,15 +248,6 @@ pub fn get_peer<'arr>(
         }
     }
     return None;
-}
-
-fn make_piece(manager: &mut Manager) -> Vec<u8> {
-    let mut piece: Vec<u8> = vec![];
-
-    for block_message in manager.get_block_buffer() {
-        piece.extend(&block_message.get_block_data());
-    }
-    piece
 }
 
 fn choose_piece_to_download(
