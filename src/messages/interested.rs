@@ -18,7 +18,7 @@ impl InterestedMessage {
         let mut bin_vector: Vec<bool> = vec![];
 
         for byte in &self.bitfield {
-            for offset in (0..8) {
+            for offset in 0..8 {
                 let mask = 128 >> offset;
                 if mask & byte > 0 {
                     bin_vector.push(true)

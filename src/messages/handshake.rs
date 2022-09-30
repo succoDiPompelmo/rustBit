@@ -66,7 +66,7 @@ pub fn perform(
     send_handshake(&stream, info_hash, peer_id)?;
     let handshake_response_message = read_handshake(&stream)?;
 
-    if (handshake_response_message.get_info_hash() != *info_hash) {
+    if handshake_response_message.get_info_hash() != *info_hash {
         return Err("Info hash not matching in handshake response");
     }
 
