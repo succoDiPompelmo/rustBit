@@ -71,6 +71,15 @@ impl Message {
         ]
         .concat()
     }
+
+    pub fn get_extension_data_message(&self) -> Option<&ExtensionMessage> {
+        if let ContentType::Extension(msg) = &self.content {
+            if msg.is_data() {
+                return Some(&msg);
+            }
+        }
+        None
+    }
 }
 
 pub fn new_interested() -> Message {

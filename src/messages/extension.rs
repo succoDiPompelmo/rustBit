@@ -42,14 +42,6 @@ impl ExtensionMessage {
         self.metadata_size
     }
 
-    pub fn get_msg_type(&self) -> Option<usize> {
-        self.msg_type
-    }
-
-    pub fn get_piece(&self) -> Option<usize> {
-        self.piece
-    }
-
     pub fn get_data(&self) -> Vec<u8> {
         self.data.to_vec()
     }
@@ -60,6 +52,13 @@ impl ExtensionMessage {
 
     pub fn is_handshake(&self) -> bool {
         self.metadata_size.is_some()
+    }
+
+    pub fn is_data(&self) -> bool {
+        match self.msg_type {
+            Some(1) => true,
+            _ => false,
+        }
     }
 
     pub fn as_bytes(&self) -> Vec<u8> {
@@ -109,7 +108,7 @@ mod test {
             outcome.get_extensions()
         );
         assert_eq!(true, outcome.get_data().is_empty());
-        assert_eq!(None, outcome.get_msg_type());
+        assert_eq!(None, outcome.msg_type);
     }
 
     #[test]
@@ -127,7 +126,7 @@ mod test {
         assert_eq!(None, outcome.get_metadata_size());
         assert_eq!(&HashMap::from([]), outcome.get_extensions());
         assert_eq!(data, outcome.get_data());
-        assert_eq!(Some(1), outcome.get_msg_type());
-        assert_eq!(Some(2), outcome.get_piece());
+        assert_eq!(Some(1), outcome.msg_type);
+        assert_eq!(Some(2), outcome.piece);
     }
 }
