@@ -149,7 +149,9 @@ impl Info {
     }
 
     pub fn get_total_pieces(&self) -> usize {
-        (0..self.get_total_length()).step_by(self.get_piece_length()).len()
+        (0..self.get_total_length())
+            .step_by(self.get_piece_length())
+            .len()
     }
 
     pub fn get_files(&self) -> Result<Vec<File>, &'static str> {

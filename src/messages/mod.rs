@@ -57,7 +57,7 @@ impl Message {
     }
 
     pub fn as_bytes(&self) -> Vec<u8> {
-        let body_bytes = match &self.content {
+        let content_as_bytes = match &self.content {
             ContentType::Nothing() => vec![],
             ContentType::Extension(extension) => extension.as_bytes(),
             ContentType::Request(request) => request.as_bytes(),
@@ -67,7 +67,7 @@ impl Message {
         [
             self.length.to_be_bytes().to_vec(),
             self.id.to_be_bytes().to_vec(),
-            body_bytes,
+            content_as_bytes,
         ]
         .concat()
     }
