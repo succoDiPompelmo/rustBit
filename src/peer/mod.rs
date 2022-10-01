@@ -1,3 +1,4 @@
+pub mod peer_manager;
 pub mod peer_stream;
 
 use std::collections::HashMap;

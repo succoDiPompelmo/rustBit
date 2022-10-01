@@ -80,6 +80,13 @@ impl Message {
         }
         None
     }
+
+    pub fn get_request_message(&self) -> Option<&RequestMessage> {
+        match &self.content {
+            ContentType::Request(msg) => Some(&msg),
+            _ => None,
+        }
+    }
 }
 
 pub fn new_interested() -> Message {

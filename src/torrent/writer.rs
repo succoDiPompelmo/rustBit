@@ -7,13 +7,24 @@ use crate::torrent::file::File;
 #[derive(Debug, PartialEq)]
 pub struct FileWriter {
     path: Vec<String>,
-    start: u32,
-    end: u32,
+    start: usize,
+    end: usize,
     piece: Vec<u8>,
 }
 
+pub fn write_piece(
+    piece: Vec<u8>,
+    piece_idx: usize,
+    piece_length: usize,
+    torrent_files: Vec<File>,
+) {
+    get_file_writers(torrent_files, piece, piece_idx, piece_length)
+        .iter()
+        .for_each(|writer| writer.write_to_filesystem());
+}
+
 impl FileWriter {
-    fn new(path: Vec<String>, start: u32, end: u32, piece: Vec<u8>) -> FileWriter {
+    fn new(path: Vec<String>, start: usize, end: usize, piece: Vec<u8>) -> FileWriter {
         return FileWriter {
             path,
             start,
@@ -41,15 +52,15 @@ impl FileWriter {
 }
 
 struct FileParser {
-    piece_length: u32,
-    offset: u32,
-    start_file_index: u32,
-    end_file_index: u32,
-    right_file_boundary: u32,
+    piece_length: usize,
+    offset: usize,
+    start_file_index: usize,
+    end_file_index: usize,
+    right_file_boundary: usize,
 }
 
 impl FileParser {
-    fn new(piece_length: u32, piece_index: u32, default_piece_length: u32) -> FileParser {
+    fn new(piece_length: usize, piece_index: usize, default_piece_length: usize) -> FileParser {
         let offset = piece_index * default_piece_length;
         FileParser {
             piece_length,
@@ -64,7 +75,7 @@ impl FileParser {
         self.start_file_index = self.end_file_index;
     }
 
-    fn update_right_file_boundary(&mut self, file_length: u32) {
+    fn update_right_file_boundary(&mut self, file_length: usize) {
         self.right_file_boundary += file_length
     }
 
@@ -80,11 +91,11 @@ impl FileParser {
         (self.end_file_index - self.offset) as usize
     }
 
-    fn get_start_file_index(&self, file_length: u32) -> u32 {
+    fn get_start_file_index(&self, file_length: usize) -> usize {
         self.start_file_index - (self.right_file_boundary - file_length)
     }
 
-    fn get_end_file_index(&self, file_length: u32) -> u32 {
+    fn get_end_file_index(&self, file_length: usize) -> usize {
         self.end_file_index - (self.right_file_boundary - file_length)
     }
 
@@ -100,14 +111,14 @@ impl FileParser {
 pub fn get_file_writers(
     files: Vec<File>,
     piece: Vec<u8>,
-    piece_index: u32,
-    torrent_piece_length: u32,
+    piece_index: usize,
+    torrent_piece_length: usize,
 ) -> Vec<FileWriter> {
-    let mut file_parser = FileParser::new(piece.len() as u32, piece_index, torrent_piece_length);
+    let mut file_parser = FileParser::new(piece.len(), piece_index, torrent_piece_length);
     let mut files_to_write = vec![];
 
     for file in files {
-        let file_length = file.get_length() as u32;
+        let file_length = file.get_length();
         file_parser.update_right_file_boundary(file_length);
 
         if file_parser.is_piece_in_file() {

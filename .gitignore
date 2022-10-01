@@ -14,3 +14,6 @@ Cargo.lock
 
 # All torrents items
 /torrent_files/*.torrent
+
+# Mac
+.DS_Store
