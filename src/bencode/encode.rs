@@ -12,6 +12,14 @@ impl Encode for String {
     }
 }
 
+impl Encode for &str {
+    fn encode(&self) -> Vec<u8> {
+        format!("{}:{}", self.chars().count(), self)
+            .as_bytes()
+            .to_vec()
+    }
+}
+
 impl Encode for usize {
     fn encode(&self) -> Vec<u8> {
         format!("i{}e", self).as_bytes().to_vec()
@@ -61,8 +69,8 @@ impl<T: Encode> Encode for Option<T> {
     }
 }
 
-pub fn encode_dict_entry(key: &String, value: &impl Encode) -> Vec<u8> {
-    match key.as_ref() {
+pub fn encode_dict_entry(key: &str, value: &impl Encode) -> Vec<u8> {
+    match key {
         "" => value.encode(),
         _ => {
             let encoded_value = value.encode();

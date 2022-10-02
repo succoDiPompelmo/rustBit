@@ -3,14 +3,14 @@ use std::time::Duration;
 
 use crate::bencode::decode::Decoder;
 use crate::bencode::metainfo;
-use crate::tracker::tracker::Tracker;
+use crate::tracker::Tracker;
 
 pub fn get_tracker(
-    info_hash: &Vec<u8>,
+    info_hash: &[u8],
     peer_id: &str,
     tracker: &str,
 ) -> Result<Tracker, &'static str> {
-    let url_encoded_info_hash = urlencoding::encode_binary(info_hash.as_slice()).into_owned();
+    let url_encoded_info_hash = urlencoding::encode_binary(info_hash).into_owned();
 
     let tracker_url = format!(
         "{}?info_hash={}&peer_id={}",
@@ -32,7 +32,7 @@ fn from_metainfo(metainfo: metainfo::Metainfo) -> Result<Tracker, &'static str> 
     };
 
     Ok(Tracker {
-        interval: interval,
+        interval,
         peers: Tracker::peers_info_from_bytes(peers_list),
     })
 }

@@ -3,7 +3,8 @@ use std::fs::File;
 use std::io::prelude::*;
 
 use crate::torrent::magnet;
-use crate::torrent::torrent::Torrent;
+use crate::torrent::Torrent;
+use crate::tracker::Tracker;
 
 mod bencode;
 mod integration_test;
@@ -38,6 +39,6 @@ fn main() -> std::io::Result<()> {
         Torrent::from_info_hash(&magnet).unwrap()
     };
 
-    tracker::tracker::Tracker::init_tracker(&mut torrent).unwrap();
+    Tracker::init_tracker(&mut torrent).unwrap();
     Ok(())
 }

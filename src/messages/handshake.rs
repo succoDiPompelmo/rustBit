@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use std::net::TcpStream;
 use std::time::Duration;
 
-use crate::tracker::tracker::PeerConnectionInfo;
+use crate::tracker::PeerConnectionInfo;
 
 #[derive(Debug)]
 pub struct HandshakeMessage {
@@ -53,7 +53,7 @@ impl HandshakeMessage {
 
 pub fn perform(
     peer_info: PeerConnectionInfo,
-    info_hash: &Vec<u8>,
+    info_hash: &[u8],
     peer_id: &str,
 ) -> Result<TcpStream, &'static str> {
     let peer_url = format!("{}:{}", peer_info.ip, peer_info.port);
@@ -90,7 +90,7 @@ fn read_handshake(mut stream: &TcpStream) -> Result<HandshakeMessage, &'static s
 
 fn send_handshake(
     mut stream: &TcpStream,
-    info_hash: &Vec<u8>,
+    info_hash: &[u8],
     peer_id: &str,
 ) -> Result<(), &'static str> {
     match stream.write(&HandshakeMessage::new(info_hash, peer_id).as_bytes()) {

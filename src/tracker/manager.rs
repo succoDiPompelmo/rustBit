@@ -5,8 +5,8 @@ use std::thread;
 use crate::messages::handshake;
 use crate::peer::peer_manager::peer_thread;
 use crate::peer::Peer;
-use crate::torrent::torrent::{Info, Torrent};
-use crate::tracker::tracker::PeerConnectionInfo;
+use crate::torrent::{Info, Torrent};
+use crate::tracker::PeerConnectionInfo;
 
 pub fn download(
     peers_info: Vec<PeerConnectionInfo>,

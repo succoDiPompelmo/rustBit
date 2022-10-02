@@ -3,9 +3,9 @@ mod test {
     use crate::bencode::decode::Decoder;
     use crate::read_file;
     use crate::torrent::magnet::parse_magnet;
-    use crate::torrent::torrent::Torrent;
+    use crate::torrent::Torrent;
     use crate::tracker::manager::download;
-    use crate::tracker::tracker::PeerConnectionInfo;
+    use crate::tracker::PeerConnectionInfo;
 
     #[ignore]
     #[test]
@@ -24,7 +24,7 @@ mod test {
         download(vec![peer], "bbaaaaaaaaaaaaaaaaaa", torrent).unwrap();
     }
 
-    #[ignore]
+    // #[ignore]
     #[test]
     fn test_handshake_with_magnet() {
         let peer = PeerConnectionInfo {

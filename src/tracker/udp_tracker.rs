@@ -1,10 +1,10 @@
 use std::net::UdpSocket;
 use std::time::Duration;
 
-use crate::tracker::tracker::Tracker;
+use crate::tracker::Tracker;
 
 pub fn get_tracker(
-    info_hash: &Vec<u8>,
+    info_hash: &[u8],
     peer_id: &str,
     tracker_url: &str,
 ) -> Result<Tracker, &'static str> {
@@ -17,7 +17,7 @@ pub fn get_tracker(
         transaction_id,
         &connection_id,
         peer_id.as_bytes(),
-        info_hash.as_slice(),
+        info_hash,
     );
     send_upd_packet(&socket, message, tracker_hostname)?;
 

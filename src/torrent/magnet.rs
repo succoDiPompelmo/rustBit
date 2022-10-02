@@ -9,7 +9,7 @@ impl Magnet {
     }
 }
 
-fn verify_info_hash(magnet_uri: &Vec<u8>) -> bool {
+fn verify_info_hash(magnet_uri: &[u8]) -> bool {
     magnet_uri.len() < 60 || &magnet_uri[..8] != "magnet:?".as_bytes()
 }
 
@@ -44,7 +44,7 @@ fn hex_decode(info_hash_hex_encoded: &[u8]) -> Vec<u8> {
 
 fn parse_info_hash(magnet_uri: &[u8]) -> Vec<u8> {
     if magnet_uri[60] == b'&' {
-        hex_decode(&magnet_uri[20..60].to_vec())
+        hex_decode(&magnet_uri[20..60])
     } else {
         magnet_uri[20..52].to_vec()
     }

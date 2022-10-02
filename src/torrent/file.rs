@@ -36,8 +36,8 @@ impl File {
 
 impl Encode for File {
     fn encode(&self) -> Vec<u8> {
-        let length = encode_dict_entry(&"length".to_owned(), &self.length);
-        let path = encode_dict_entry(&"path".to_owned(), &self.path);
+        let length = encode_dict_entry("length", &self.length);
+        let path = encode_dict_entry("path", &self.path);
 
         [
             "d".as_bytes(),

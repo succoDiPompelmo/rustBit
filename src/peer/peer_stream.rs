@@ -42,9 +42,9 @@ impl PeerStream {
         let id = buffer[0];
 
         if length == 0 {
-            Some(Message::new(ContentType::Nothing(), length, id));
+            return Some(Message::new(ContentType::Nothing(), length, id));
         } else {
-            length = length - 1
+            length -= 1
         }
 
         let mut body = vec![0; length as usize];
