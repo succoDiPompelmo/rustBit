@@ -7,7 +7,7 @@ use crate::messages::extension::ExtensionMessage;
 use crate::messages::interested::InterestedMessage;
 use crate::messages::request::RequestMessage;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ContentType {
     Request(RequestMessage),
     Extension(ExtensionMessage),
@@ -15,7 +15,7 @@ pub enum ContentType {
     Nothing(),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Message {
     id: u8,
     length: u32,
@@ -56,6 +56,15 @@ impl Message {
         &self.content
     }
 
+    pub fn get_content_data(&self) -> Vec<u8> {
+        match &self.content {
+            ContentType::Nothing() => vec![],
+            ContentType::Extension(extension) => extension.get_data(),
+            ContentType::Request(request) => request.get_block_data(),
+            ContentType::Interested(interested) => interested.get_bitfield(),
+        }
+    }
+
     pub fn as_bytes(&self) -> Vec<u8> {
         let content_as_bytes = match &self.content {
             ContentType::Nothing() => vec![],
@@ -72,19 +81,19 @@ impl Message {
         .concat()
     }
 
-    pub fn get_extension_data_message(&self) -> Option<&ExtensionMessage> {
+    pub fn is_extension_data_message(&self) -> bool {
         if let ContentType::Extension(msg) = &self.content {
             if msg.is_data() {
-                return Some(&msg);
+                return true;
             }
         }
-        None
+        false
     }
 
-    pub fn get_request_message(&self) -> Option<&RequestMessage> {
-        match &self.content {
-            ContentType::Request(msg) => Some(&msg),
-            _ => None,
+    pub fn is_request_message(&self) -> bool {
+        match self.content {
+            ContentType::Request(_) => true,
+            _ => false,
         }
     }
 }

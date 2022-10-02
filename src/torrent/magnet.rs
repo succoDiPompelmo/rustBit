@@ -56,7 +56,6 @@ pub fn parse_magnet(magnet_uri: Vec<u8>) -> Result<Vec<u8>, &'static str> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::bencode::decode::Decoder;
     use std::fs::File as Fs;
     use std::io::prelude::*;
 

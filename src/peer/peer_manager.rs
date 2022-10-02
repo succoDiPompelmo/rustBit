@@ -1,8 +1,6 @@
 use std::cmp;
 use std::sync::mpsc::{Receiver, Sender};
 
-use crate::messages::extension::ExtensionMessage;
-use crate::messages::request::RequestMessage;
 use crate::messages::Message;
 use crate::peer::Peer;
 use crate::torrent::torrent::Info;
@@ -11,42 +9,54 @@ use crate::torrent::writer::write_piece;
 const BLOCK_SIZE: usize = 16384;
 const INFO_PIECE_SIZE: usize = 16384;
 
-struct PeerInfoManager {
-    piece_buffer: Vec<ExtensionMessage>,
-    pieces_count: usize,
+struct PeerManager {
+    buffer: Vec<Message>,
+    buffer_capacity: usize,
     is_downloading: bool,
 }
 
-impl PeerInfoManager {
-    fn new(metadata_size: usize) -> PeerInfoManager {
-        PeerInfoManager {
-            piece_buffer: vec![],
-            pieces_count: (0..metadata_size).step_by(INFO_PIECE_SIZE).len(),
+impl PeerManager {
+    fn new(buffer_capacity: usize) -> PeerManager {
+        PeerManager {
+            buffer: vec![],
+            buffer_capacity,
             is_downloading: false,
         }
     }
 
     fn apply_message(&mut self, message: &Message) {
-        if let Some(extension_message) = message.get_extension_data_message() {
-            self.piece_buffer.push(extension_message.clone());
+        if message.is_extension_data_message() || message.is_request_message() {
+            self.buffer.push(message.clone());
             self.is_downloading = false;
         }
     }
 
-    fn is_info_ready(&self) -> bool {
-        self.piece_buffer.len() >= self.pieces_count
+    fn is_buffer_full(&self) -> bool {
+        self.buffer.len() >= self.buffer_capacity
     }
 
-    fn get_info(&self) -> Vec<u8> {
-        self.piece_buffer
+    fn try_assemble(&mut self, peer: &mut Peer) -> Option<Vec<u8>> {
+        peer.get_stream().read_message().map_or((), |msg| {
+            peer.apply_message(&msg);
+            self.apply_message(&msg);
+        });
+
+        if self.is_buffer_full() {
+            return Some(self.assemble_buffer());
+        };
+        None
+    }
+
+    fn assemble_buffer(&self) -> Vec<u8> {
+        self.buffer
             .iter()
-            .map(|el| el.get_data())
+            .map(|el| el.get_content_data())
             .flatten()
             .collect()
     }
 
-    fn get_piece_offset(&self) -> usize {
-        self.piece_buffer.len()
+    fn get_offset(&self, offset_unit: usize) -> usize {
+        self.buffer.len() * offset_unit
     }
 
     fn set_downloading(&mut self) {
@@ -58,68 +68,17 @@ impl PeerInfoManager {
     }
 }
 
-struct PeerRequestManager {
-    block_buffer: Vec<RequestMessage>,
-    blocks_count: usize,
-    is_downloading: bool,
+fn get_block_size(block_offset: usize, torrent_length: usize, piece_offset: usize) -> usize {
+    cmp::min(torrent_length - (block_offset + piece_offset), BLOCK_SIZE)
 }
 
-impl PeerRequestManager {
-    fn new(piece_length: usize) -> PeerRequestManager {
-        PeerRequestManager {
-            block_buffer: vec![],
-            blocks_count: (0..piece_length).step_by(BLOCK_SIZE).len(),
-            is_downloading: false,
-        }
-    }
-
-    fn is_piece_ready(&self) -> bool {
-        self.block_buffer.len() >= self.blocks_count
-    }
-
-    fn get_piece(&self) -> Vec<u8> {
-        self.block_buffer
-            .iter()
-            .map(|el| el.get_block_data())
-            .flatten()
-            .collect()
-    }
-
-    fn apply_message(&mut self, message: &Message) {
-        if let Some(request_message) = message.get_request_message() {
-            self.block_buffer.push(request_message.clone());
-            self.is_downloading = false;
-        }
-    }
-
-    fn get_block_offset(&self) -> usize {
-        self.block_buffer.len() * BLOCK_SIZE
-    }
-
-    fn get_block_size(&self, torrent_length: usize, piece_offset: usize) -> usize {
-        cmp::min(
-            torrent_length - (self.get_block_offset() + piece_offset),
-            BLOCK_SIZE,
-        )
-    }
-
-    fn is_ready(&self) -> bool {
-        !self.is_downloading
-    }
-
-    fn set_downloading(&mut self) {
-        self.is_downloading = true
-    }
-}
-
-// Perform all the required checks before the download can start.
 fn init_download(peer: &mut Peer) {
     peer.get_stream().send_interested();
 
     loop {
-        if let Some(message) = peer.get_stream().read_message() {
-            peer.apply_message(&message);
-        }
+        peer.get_stream()
+            .read_message()
+            .map_or((), |msg| peer.apply_message(&msg));
 
         if peer.get_metadata_size() != 0 && !peer.is_choked() {
             return;
@@ -128,55 +87,40 @@ fn init_download(peer: &mut Peer) {
 }
 
 fn download_info(peer: &mut Peer) -> Result<Info, &'static str> {
-    let mut manager = PeerInfoManager::new(peer.get_metadata_size());
+    let mut manager =
+        PeerManager::new((0..peer.get_metadata_size()).step_by(INFO_PIECE_SIZE).len());
 
     loop {
-        if let Some(message) = peer.get_stream().read_message() {
-            peer.apply_message(&message);
-            manager.apply_message(&message);
+        if let Some(info_buffer) = manager.try_assemble(peer) {
+            return Ok(Info::from_bytes(info_buffer)?);
         }
 
-        if !manager.is_ready() {
-            continue;
+        if manager.is_ready() {
+            peer.request_info_piece(manager.get_offset(1));
+            manager.set_downloading();
         }
-
-        if manager.is_info_ready() {
-            return Ok(Info::from_bytes(manager.get_info())?);
-        };
-
-        let extension_id = peer.get_extension_id("ut_metadata").unwrap();
-        peer.get_stream()
-            .send_metadata_request(extension_id, manager.get_piece_offset());
-
-        manager.set_downloading();
     }
 }
 
-fn download_piece(info: &Info, piece_idx: usize, peer: &mut Peer) -> Result<Vec<u8>, &'static str> {
-    let mut manager = PeerRequestManager::new(info.get_piece_length());
+fn download_piece(peer: &mut Peer, info: &Info, piece_idx: usize) -> Result<Vec<u8>, &'static str> {
+    let mut manager = PeerManager::new((0..info.get_piece_length()).step_by(BLOCK_SIZE).len());
 
     loop {
-        if let Some(message) = peer.get_stream().read_message() {
-            peer.apply_message(&message);
-            manager.apply_message(&message);
+        if let Some(piece) = manager.try_assemble(peer) {
+            return Ok(piece);
         }
 
-        if !manager.is_ready() {
-            continue;
+        if manager.is_ready() {
+            let block_offset = manager.get_offset(BLOCK_SIZE);
+            let block_size = get_block_size(
+                block_offset,
+                info.get_total_length(),
+                piece_idx * info.get_piece_length(),
+            );
+
+            peer.request_piece(block_size as u32, block_offset as u32, piece_idx as u32);
+            manager.set_downloading();
         }
-
-        if manager.is_piece_ready() {
-            return Ok(manager.get_piece());
-        }
-
-        let block_offset = manager.get_block_offset();
-        let block_size =
-            manager.get_block_size(info.get_total_length(), piece_idx * info.get_piece_length());
-
-        peer.get_stream()
-            .send_request(block_size as u32, block_offset as u32, piece_idx as u32);
-
-        manager.set_downloading();
     }
 }
 
@@ -188,7 +132,7 @@ pub fn peer_thread(peer: &mut Peer, tx: Sender<Info>, piece_rx: Receiver<usize>)
     loop {
         if let Ok(piece_idx) = piece_rx.recv() {
             println!("{:?}", piece_idx);
-            let piece = download_piece(&info, piece_idx, peer).unwrap();
+            let piece = download_piece(peer, &info, piece_idx).unwrap();
             if info.verify_piece(&piece, piece_idx) {
                 write_piece(
                     piece,
