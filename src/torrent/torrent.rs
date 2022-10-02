@@ -5,6 +5,7 @@ use crate::bencode::encode::{encode_dict_entry, Encode};
 use crate::bencode::metainfo;
 use crate::bencode::metainfo::Metainfo;
 use crate::torrent::file::File;
+use crate::torrent::magnet::Magnet;
 
 #[derive(Debug, PartialEq)]
 pub struct Torrent {
@@ -38,12 +39,12 @@ impl Torrent {
         });
     }
 
-    pub fn from_info_hash(info_hash: &Vec<u8>) -> Result<Torrent, &'static str> {
+    pub fn from_info_hash(magnet: &Magnet) -> Result<Torrent, &'static str> {
         Ok(Torrent {
             announce: "pippo".to_owned(),
             announce_list: None,
             info: None,
-            info_hash: info_hash.to_vec(),
+            info_hash: magnet.get_info_hash(),
         })
     }
 

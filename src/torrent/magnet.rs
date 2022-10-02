@@ -1,5 +1,12 @@
+#[derive(Debug, PartialEq)]
 pub struct Magnet {
     info_hash: Vec<u8>,
+}
+
+impl Magnet {
+    pub fn get_info_hash(&self) -> Vec<u8> {
+        self.info_hash.to_vec()
+    }
 }
 
 fn verify_info_hash(magnet_uri: &Vec<u8>) -> bool {
@@ -43,31 +50,20 @@ fn get_info_hash(magnet_uri: &Vec<u8>) -> Vec<u8> {
     }
 }
 
-pub fn parse_magnet(magnet_uri: Vec<u8>) -> Result<Vec<u8>, &'static str> {
+pub fn parse_magnet(magnet_uri: Vec<u8>) -> Result<Magnet, &'static str> {
     if verify_info_hash(&magnet_uri) {
         return Err("No magnet uri found");
     }
 
     let info_hash = get_info_hash(&magnet_uri);
 
-    return Ok(info_hash);
+    return Ok(Magnet { info_hash });
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::fs::File as Fs;
-    use std::io::prelude::*;
-
     use base32::Alphabet::RFC4648;
-
-    fn read_test_data(file_name: &str) -> Vec<u8> {
-        let mut file = Fs::open(file_name).unwrap();
-        let mut contents = Vec::new();
-        file.read_to_end(&mut contents).unwrap();
-
-        return contents;
-    }
 
     #[test]
     fn parse_magnet_hex_encoded_test() {
@@ -76,10 +72,12 @@ mod test {
 
         assert_eq!(
             result.unwrap(),
-            vec![
-                166, 228, 73, 194, 40, 30, 98, 237, 191, 140, 219, 68, 116, 19, 202, 40, 140, 240,
-                229, 104
-            ]
+            Magnet {
+                info_hash: vec![
+                    166, 228, 73, 194, 40, 30, 98, 237, 191, 140, 219, 68, 116, 19, 202, 40, 140,
+                    240, 229, 104
+                ]
+            }
         )
     }
 
@@ -95,9 +93,11 @@ mod test {
 
         assert_eq!(
             result.unwrap(),
-            base32::encode(RFC4648 { padding: false }, &info_hash)
-                .as_bytes()
-                .to_vec()
+            Magnet {
+                info_hash: base32::encode(RFC4648 { padding: false }, &info_hash)
+                    .as_bytes()
+                    .to_vec()
+            }
         )
     }
 

@@ -27,14 +27,6 @@ impl RequestMessage {
         }
     }
 
-    pub fn get_piece_index(&self) -> u32 {
-        self.piece_index
-    }
-
-    pub fn get_block_index(&self) -> u32 {
-        self.block_index
-    }
-
     pub fn get_block_data(&self) -> Vec<u8> {
         self.block_data.to_vec()
     }
@@ -64,8 +56,8 @@ mod test {
 
         let outcome = RequestMessage::from_bytes(&input);
         assert_eq!((3 as u32).to_be_bytes().to_vec(), outcome.get_block_data());
-        assert_eq!(2, outcome.get_block_index());
-        assert_eq!(1, outcome.get_piece_index());
+        assert_eq!(2, outcome.block_index);
+        assert_eq!(1, outcome.piece_index);
     }
 
     #[test]
@@ -79,9 +71,9 @@ mod test {
         .concat();
 
         let outcome = RequestMessage::from_bytes(&input);
-        assert_eq!(data, outcome.get_block_data());
-        assert_eq!(10, outcome.get_block_index());
-        assert_eq!(9, outcome.get_piece_index());
+        assert_eq!(data, outcome.block_data);
+        assert_eq!(10, outcome.block_index);
+        assert_eq!(9, outcome.piece_index);
     }
 
     #[test]
