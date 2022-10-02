@@ -21,7 +21,7 @@ pub fn get_tracker(
     let tracker_metainfo = Decoder::init(result).decode();
     let tracker = from_metainfo(tracker_metainfo)?;
 
-    return Ok(tracker);
+    Ok(tracker)
 }
 
 fn from_metainfo(metainfo: metainfo::Metainfo) -> Result<Tracker, &'static str> {
@@ -31,17 +31,17 @@ fn from_metainfo(metainfo: metainfo::Metainfo) -> Result<Tracker, &'static str> 
         _ => return Err("No pieces found"),
     };
 
-    return Ok(Tracker {
+    Ok(Tracker {
         interval: interval,
         peers: Tracker::peers_info_from_bytes(peers_list),
-    });
+    })
 }
 
 fn get_peers(url: String) -> Result<Vec<u8>, &'static str> {
     let respone = call_tracker_for_peers(url)?;
     let mut bytes = vec![];
     respone.into_reader().read_to_end(&mut bytes).unwrap();
-    return Ok(bytes);
+    Ok(bytes)
 }
 
 fn call_tracker_for_peers(url: String) -> Result<ureq::Response, &'static str> {
@@ -63,5 +63,5 @@ fn call_tracker_for_peers(url: String) -> Result<ureq::Response, &'static str> {
         }
     }
 
-    return Err("Maximum retires reached");
+    Err("Maximum retires reached")
 }

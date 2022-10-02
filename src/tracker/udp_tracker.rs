@@ -34,7 +34,7 @@ pub fn get_tracker(
         });
     }
 
-    return Err("");
+    Err("")
 }
 
 fn connect_to_tracker(
@@ -53,7 +53,7 @@ fn connect_to_tracker(
         }
     }
 
-    return Err("No connection to tracker");
+    Err("No connection to tracker")
 }
 
 fn read_upd_packet(socket: &UdpSocket, buffer: &mut [u8]) -> Result<usize, &'static str> {

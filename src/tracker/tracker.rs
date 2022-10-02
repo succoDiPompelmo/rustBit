@@ -20,13 +20,11 @@ pub struct PeerConnectionInfo {
 }
 
 fn random_peer_id() -> String {
-    let rand_string: String = thread_rng()
+    thread_rng()
         .sample_iter(&Alphanumeric)
         .take(20)
         .map(char::from)
-        .collect();
-
-    return rand_string;
+        .collect()
 }
 
 impl Tracker {
@@ -56,11 +54,11 @@ impl Tracker {
                 download(peers.to_vec(), &peer_id, torrent)?;
             }
         }
-        return Err("No tracker found");
+        Err("No tracker found")
     }
 
     fn get_peers_info(&self) -> &Vec<PeerConnectionInfo> {
-        return &self.peers;
+        &self.peers
     }
 
     pub fn peers_info_from_bytes(bytes: &Vec<u8>) -> Vec<PeerConnectionInfo> {
@@ -76,7 +74,7 @@ impl Tracker {
             peers_info.push(PeerConnectionInfo { ip, port })
         }
 
-        return peers_info;
+        peers_info
     }
 }
 

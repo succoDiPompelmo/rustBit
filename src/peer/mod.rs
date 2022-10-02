@@ -18,17 +18,17 @@ pub struct Peer {
 
 impl Peer {
     pub fn new(stream: TcpStream) -> Peer {
-        return Peer {
+        Peer {
             choked: true,
             bitfield: vec![],
             metadata_size: 0,
             extensions: HashMap::new(),
             stream: PeerStream::new(stream),
-        };
+        }
     }
 
     pub fn is_choked(&self) -> bool {
-        return self.choked;
+        self.choked
     }
 
     pub fn get_stream(&mut self) -> &mut PeerStream {
@@ -77,12 +77,10 @@ impl Peer {
                 self.bitfield = content.get_bitfield_as_bit_vector()
             }
             ContentType::Extension(content) => {
-                if !content.is_handshake() {
-                    return;
+                if content.is_handshake() {
+                    self.extensions = content.get_extensions().clone();
+                    self.metadata_size = content.get_metadata_size().unwrap_or(0);
                 }
-
-                self.extensions = content.get_extensions().clone();
-                self.metadata_size = content.get_metadata_size().unwrap_or(0);
             }
             _ => (),
         }

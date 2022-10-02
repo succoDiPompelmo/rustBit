@@ -25,12 +25,12 @@ pub fn write_piece(
 
 impl FileWriter {
     fn new(path: Vec<String>, start: usize, end: usize, piece: Vec<u8>) -> FileWriter {
-        return FileWriter {
+        FileWriter {
             path,
             start,
             end,
             piece,
-        };
+        }
     }
 
     // TODO: Add optional folder where to save output
@@ -139,7 +139,7 @@ pub fn get_file_writers(
             }
         }
     }
-    return files_to_write;
+    files_to_write
 }
 
 #[cfg(test)]

@@ -18,19 +18,19 @@ impl File {
             file_path.push(path_value);
         }
 
-        return Ok(File::new(file_path, file_length));
+        Ok(File::new(file_path, file_length))
     }
 
     pub fn new(path: Vec<String>, length: usize) -> File {
-        return File { path, length };
+        File { path, length }
     }
 
     pub fn get_length(&self) -> usize {
-        return self.length;
+        self.length
     }
 
     pub fn get_path(&self) -> Vec<String> {
-        return self.path.to_vec();
+        self.path.to_vec()
     }
 }
 
@@ -39,13 +39,13 @@ impl Encode for File {
         let length = encode_dict_entry(&"length".to_owned(), &self.length);
         let path = encode_dict_entry(&"path".to_owned(), &self.path);
 
-        return [
+        [
             "d".as_bytes(),
             length.as_slice(),
             path.as_slice(),
             "e".as_bytes(),
         ]
-        .concat();
+        .concat()
     }
 }
 

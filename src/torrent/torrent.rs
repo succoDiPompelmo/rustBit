@@ -49,7 +49,7 @@ impl Torrent {
     }
 
     pub fn get_info_hash(&self) -> Vec<u8> {
-        return self.info_hash.to_vec();
+        self.info_hash.to_vec()
     }
 
     pub fn get_announce_list(&self) -> Vec<String> {
@@ -61,7 +61,7 @@ impl Torrent {
 }
 
 fn compute_info_hash(bencoded_info: Vec<u8>) -> Vec<u8> {
-    return Sha1::digest(bencoded_info).as_slice().to_owned();
+    Sha1::digest(bencoded_info).as_slice().to_owned()
 }
 
 fn announce_list_from_metainfo(announce_list_metainfo: &Vec<Metainfo>) -> Vec<Vec<String>> {
@@ -114,13 +114,13 @@ impl Info {
             Err(_) => None,
         };
 
-        return Ok(Info {
+        Ok(Info {
             name,
             pieces: pieces.to_vec(),
             piece_length,
             files,
             length,
-        });
+        })
     }
 
     pub fn get_piece(&self, index: usize) -> Vec<u8> {
@@ -136,14 +136,13 @@ impl Info {
     }
 
     pub fn get_piece_length(&self) -> usize {
-        return self.piece_length;
+        self.piece_length
     }
 
     pub fn get_total_length(&self) -> usize {
         match &self.files {
             Some(files) => {
-                let sum = files.iter().map(|file| file.get_length()).sum::<usize>();
-                return sum;
+                files.iter().map(|file| file.get_length()).sum::<usize>()
             }
             None => self.length.unwrap(),
         }
@@ -174,7 +173,7 @@ impl Encode for Info {
         let piece_length = encode_dict_entry(&"piece length".to_owned(), &self.piece_length);
         let pieces = encode_dict_entry(&"pieces".to_owned(), &self.pieces);
 
-        return [
+        [
             "d".as_bytes(),
             files.as_slice(),
             length.as_slice(),
@@ -183,7 +182,7 @@ impl Encode for Info {
             pieces.as_slice(),
             "e".as_bytes(),
         ]
-        .concat();
+        .concat()
     }
 }
 
@@ -200,7 +199,7 @@ mod test {
         let mut contents = Vec::new();
         file.read_to_end(&mut contents).unwrap();
 
-        return contents;
+        contents
     }
 
     #[test]

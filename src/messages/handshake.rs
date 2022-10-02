@@ -73,7 +73,7 @@ pub fn perform(
     //     println!("EXTENSION SUPPORTED");
     // }
 
-    return Ok(stream);
+    Ok(stream)
 }
 
 fn read_handshake(mut stream: &TcpStream) -> Result<HandshakeMessage, &'static str> {
@@ -94,8 +94,8 @@ fn send_handshake(
     peer_id: &str,
 ) -> Result<(), &'static str> {
     match stream.write(&HandshakeMessage::new(info_hash, peer_id).as_bytes()) {
-        Ok(68) => return Ok(()),
-        _ => return Err("Error sending handshake request"),
+        Ok(68) => Ok(()),
+        _ => Err("Error sending handshake request"),
     }
 }
 

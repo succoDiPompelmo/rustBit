@@ -10,7 +10,7 @@ impl Magnet {
 }
 
 fn verify_info_hash(magnet_uri: &Vec<u8>) -> bool {
-    return magnet_uri.len() < 60 || &magnet_uri[..8] != "magnet:?".as_bytes();
+    magnet_uri.len() < 60 || &magnet_uri[..8] != "magnet:?".as_bytes()
 }
 
 // Given a string representation of an hex character we obtain the hex byte representation.
