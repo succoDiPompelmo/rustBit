@@ -4,7 +4,7 @@ pub struct InterestedMessage {
 }
 
 impl InterestedMessage {
-    pub fn from_bytes(bytes: &Vec<u8>) -> InterestedMessage {
+    pub fn from_bytes(bytes: &[u8]) -> InterestedMessage {
         InterestedMessage {
             bitfield: bytes.to_vec(),
         }

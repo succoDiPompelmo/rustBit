@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Magnet {
     info_hash: Vec<u8>,
 }
@@ -31,7 +31,7 @@ fn byte_to_hex(byte: u8) -> u8 {
     }
 }
 
-fn hex_decode(info_hash_hex_encoded: &Vec<u8>) -> Vec<u8> {
+fn hex_decode(info_hash_hex_encoded: &[u8]) -> Vec<u8> {
     info_hash_hex_encoded
         .chunks_exact(2)
         .map(|chunk| {
@@ -42,7 +42,7 @@ fn hex_decode(info_hash_hex_encoded: &Vec<u8>) -> Vec<u8> {
         .collect::<Vec<u8>>()
 }
 
-fn get_info_hash(magnet_uri: &Vec<u8>) -> Vec<u8> {
+fn parse_info_hash(magnet_uri: &[u8]) -> Vec<u8> {
     if magnet_uri[60] == b'&' {
         hex_decode(&magnet_uri[20..60].to_vec())
     } else {
@@ -55,7 +55,7 @@ pub fn parse_magnet(magnet_uri: Vec<u8>) -> Result<Magnet, &'static str> {
         return Err("No magnet uri found");
     }
 
-    let info_hash = get_info_hash(&magnet_uri);
+    let info_hash = parse_info_hash(&magnet_uri);
 
     Ok(Magnet { info_hash })
 }

@@ -27,7 +27,7 @@ pub fn get_tracker(
     let resp_size = read_upd_packet(&socket, &mut annouce_buf)?;
 
     if resp_size > 26 {
-        let peers_info = Tracker::peers_info_from_bytes(&annouce_buf[20..resp_size].to_vec());
+        let peers_info = Tracker::peers_info_from_bytes(&annouce_buf[20..resp_size]);
         return Ok(Tracker {
             interval: 0,
             peers: peers_info,
@@ -47,8 +47,8 @@ fn connect_to_tracker(
     let mut buf: [u8; 16] = [0x00; 16];
 
     for _ in 1..5 {
-        send_upd_packet(&socket, message, tracker_hostname)?;
-        if read_upd_packet(&socket, &mut buf).is_ok() {
+        send_upd_packet(socket, message, tracker_hostname)?;
+        if read_upd_packet(socket, &mut buf).is_ok() {
             return Ok(buf[8..].to_vec());
         }
     }
@@ -61,7 +61,7 @@ fn read_upd_packet(socket: &UdpSocket, buffer: &mut [u8]) -> Result<usize, &'sta
 
     let (resp_size, _) = socket
         .recv_from(buffer)
-        .or_else(|_| Err("recv function failed: {e:?}"))?;
+        .map_err(|_| "recv function failed: {e:?}")?;
 
     Ok(resp_size)
 }
@@ -86,7 +86,7 @@ fn make_announce_message(
     peer_id: &[u8],
     info_hash: &[u8],
 ) -> Vec<u8> {
-    let action = &(1 as u32).to_be_bytes();
+    let action = &1_u32.to_be_bytes();
     // let action: &[u8] = &[0x00, 0x00, 0x00, 0x01];
     let downloaded: &[u8] = &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
     let left: &[u8] = &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];

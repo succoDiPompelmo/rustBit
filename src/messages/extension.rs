@@ -15,7 +15,7 @@ pub struct ExtensionMessage {
 }
 
 impl ExtensionMessage {
-    pub fn from_bytes(bytes: &Vec<u8>) -> ExtensionMessage {
+    pub fn from_bytes(bytes: &[u8]) -> ExtensionMessage {
         let mut decoder = Decoder::init(bytes[1..].to_vec());
         let content = decoder.decode();
 

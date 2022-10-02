@@ -14,7 +14,7 @@ impl RequestMessage {
         }
     }
 
-    pub fn from_bytes(bytes: &Vec<u8>) -> RequestMessage {
+    pub fn from_bytes(bytes: &[u8]) -> RequestMessage {
         let piece_index =
             u32::from_be_bytes(bytes[..4].try_into().expect("slice with incorrect length"));
         let block_index =

@@ -35,7 +35,7 @@ pub fn download(
     }
 }
 
-pub fn get_peer<'arr>(
+pub fn get_peer(
     peers_info: Vec<PeerConnectionInfo>,
     peer_id: &str,
     info_hash: Vec<u8>,

@@ -15,7 +15,7 @@ pub struct HandshakeMessage {
 }
 
 impl HandshakeMessage {
-    pub fn new(info_hash: &Vec<u8>, peer_id: &str) -> HandshakeMessage {
+    pub fn new(info_hash: &[u8], peer_id: &str) -> HandshakeMessage {
         HandshakeMessage {
             protocol_identifier_length: 0x13,
             protocol_identifier: "BitTorrent protocol".as_bytes().to_vec(),
@@ -60,7 +60,7 @@ pub fn perform(
     let server: SocketAddr = peer_url.parse().expect("Unable to parse socket address");
 
     let connect_timeout = Duration::from_secs(2);
-    let stream = TcpStream::connect_timeout(&server, connect_timeout).or_else(|_| Err("Error"))?;
+    let stream = TcpStream::connect_timeout(&server, connect_timeout).map_err(|_| "Error")?;
 
     send_handshake(&stream, info_hash, peer_id)?;
     let handshake_response_message = read_handshake(&stream)?;

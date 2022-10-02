@@ -6,13 +6,15 @@ pub trait Encode {
 
 impl Encode for String {
     fn encode(&self) -> Vec<u8> {
-        format!("{}:{}", self.chars().count(), self).as_bytes().to_vec()
+        format!("{}:{}", self.chars().count(), self)
+            .as_bytes()
+            .to_vec()
     }
 }
 
 impl Encode for usize {
     fn encode(&self) -> Vec<u8> {
-        format!("i{}e", self.to_string()).as_bytes().to_vec()
+        format!("i{}e", self).as_bytes().to_vec()
     }
 }
 

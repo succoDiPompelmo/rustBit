@@ -4,7 +4,7 @@ use std::os::unix::prelude::FileExt;
 
 use crate::torrent::file::File;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct FileWriter {
     path: Vec<String>,
     start: usize,

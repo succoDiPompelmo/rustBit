@@ -17,7 +17,7 @@ impl Decoder {
     }
 
     fn advance(&mut self) -> usize {
-        self.current = self.current + 1;
+        self.current += 1;
         self.current
     }
 
@@ -72,7 +72,7 @@ impl Decoder {
         self.advance();
 
         let b = &self.contents[self.current..self.current + integer];
-        self.current = self.current + integer;
+        self.current += integer;
         Metainfo::String(b.to_vec())
     }
 

@@ -51,7 +51,7 @@ impl Tracker {
             if let Ok(tracker) = tracker_result {
                 println!("Found {:?} peers", tracker.peers.len());
                 let peers = tracker.get_peers_info();
-                download(peers.to_vec(), &peer_id, torrent)?;
+                download(peers.to_vec(), peer_id, torrent)?;
             }
         }
         Err("No tracker found")
@@ -61,7 +61,7 @@ impl Tracker {
         &self.peers
     }
 
-    pub fn peers_info_from_bytes(bytes: &Vec<u8>) -> Vec<PeerConnectionInfo> {
+    pub fn peers_info_from_bytes(bytes: &[u8]) -> Vec<PeerConnectionInfo> {
         let mut peers_info = Vec::new();
 
         for chunk in bytes.chunks_exact(6) {

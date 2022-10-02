@@ -1,7 +1,7 @@
 use crate::bencode::encode::{encode_dict_entry, Encode};
 use crate::bencode::metainfo;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct File {
     path: Vec<String>,
     length: usize,

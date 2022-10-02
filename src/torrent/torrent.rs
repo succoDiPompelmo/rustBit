@@ -19,7 +19,7 @@ impl Torrent {
     pub fn from_metainfo(a: &Metainfo) -> Result<Torrent, &'static str> {
         let announce = metainfo::get_string_from_dict(a, "announce")?;
 
-        let announce_list = match metainfo::get_list_from_dict(&a, "announce-list") {
+        let announce_list = match metainfo::get_list_from_dict(a, "announce-list") {
             Ok(announce_list_metainfo) => {
                 let announce_list = announce_list_from_metainfo(announce_list_metainfo);
                 Some(announce_list)
@@ -70,7 +70,7 @@ fn announce_list_from_metainfo(announce_list_metainfo: &Vec<Metainfo>) -> Vec<Ve
         if let Ok(announce_item) = metainfo::get_list_content(announce_item_metainfo) {
             announce_list.push(
                 announce_item
-                    .into_iter()
+                    .iter()
                     .map(|item| metainfo::get_string_content(item).unwrap_or("".to_owned()))
                     .collect::<Vec<String>>(),
             );
@@ -79,7 +79,7 @@ fn announce_list_from_metainfo(announce_list_metainfo: &Vec<Metainfo>) -> Vec<Ve
     announce_list
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Info {
     files: Option<Vec<File>>,
     length: Option<usize>,
@@ -95,15 +95,15 @@ impl Info {
     }
 
     pub fn from_metainfo(a: &Metainfo) -> Result<Info, &'static str> {
-        let pieces = match metainfo::get_value_from_dict(&a, "pieces")? {
+        let pieces = match metainfo::get_value_from_dict(a, "pieces")? {
             Metainfo::String(pieces) => pieces,
             _ => return Err("No pieces found"),
         };
-        let piece_length = metainfo::get_integer_from_dict(&a, "piece length")?;
-        let name = metainfo::get_string_from_dict(&a, "name")?;
-        let length = metainfo::get_integer_from_dict(&a, "length").ok();
+        let piece_length = metainfo::get_integer_from_dict(a, "piece length")?;
+        let name = metainfo::get_string_from_dict(a, "name")?;
+        let length = metainfo::get_integer_from_dict(a, "length").ok();
 
-        let files = match metainfo::get_list_from_dict(&a, "files") {
+        let files = match metainfo::get_list_from_dict(a, "files") {
             Ok(metainfo_files) => {
                 let mut output_files = Vec::new();
                 for metainfo_file in metainfo_files {
@@ -141,9 +141,7 @@ impl Info {
 
     pub fn get_total_length(&self) -> usize {
         match &self.files {
-            Some(files) => {
-                files.iter().map(|file| file.get_length()).sum::<usize>()
-            }
+            Some(files) => files.iter().map(|file| file.get_length()).sum::<usize>(),
             None => self.length.unwrap(),
         }
     }

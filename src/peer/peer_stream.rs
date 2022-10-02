@@ -30,13 +30,13 @@ impl PeerStream {
         }
 
         let mut buffer: [u8; 4] = [0x00; 4];
-        if let Err(_) = self.stream.read(&mut buffer) {
+        if self.stream.read(&mut buffer).is_err() {
             return None;
         }
         let mut length = u32::from_be_bytes(buffer);
 
         let mut buffer: [u8; 1] = [0x00; 1];
-        if let Err(_) = self.stream.read(&mut buffer) {
+        if self.stream.read(&mut buffer).is_err() {
             return None;
         }
         let id = buffer[0];
@@ -57,7 +57,7 @@ impl PeerStream {
         None
     }
 
-    fn peek_and_read(&mut self, body: &mut Vec<u8>, length: usize) -> bool {
+    fn peek_and_read(&mut self, body: &mut [u8], length: usize) -> bool {
         self.stream.peek(body).unwrap_or(0) == length
             && self.stream.read(body).unwrap_or(0) == length
     }

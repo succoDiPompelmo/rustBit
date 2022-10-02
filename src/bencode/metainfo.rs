@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::str;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Metainfo {
     Integer(usize),
     List(Vec<Metainfo>),
@@ -31,7 +31,7 @@ pub fn get_integer_content(metainfo_string: &Metainfo) -> Result<usize, &'static
 
 pub fn get_list_content(metainfo_list: &Metainfo) -> Result<&Vec<Metainfo>, &'static str> {
     if let Metainfo::List(list_values) = metainfo_list {
-        Ok(&list_values)
+        Ok(list_values)
     } else {
         Err("No list metainfo found")
     }
@@ -84,7 +84,7 @@ pub fn get_list_from_dict<'a>(
     let dict = get_dict_content(metainfo_dict)?;
 
     if let Some(Metainfo::List(key_values)) = dict.get(key) {
-        Ok(&key_values)
+        Ok(key_values)
     } else {
         Err("No key foundin dict")
     }
