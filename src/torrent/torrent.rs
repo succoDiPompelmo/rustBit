@@ -31,12 +31,12 @@ impl Torrent {
         let info = Info::from_metainfo(info_metainfo)?;
         let info_hash = compute_info_hash(info.encode());
 
-        return Ok(Torrent {
+        Ok(Torrent {
             announce,
             announce_list,
             info: Some(info),
             info_hash,
-        });
+        })
     }
 
     pub fn from_info_hash(magnet: &Magnet) -> Result<Torrent, &'static str> {
@@ -115,11 +115,11 @@ impl Info {
         };
 
         return Ok(Info {
-            name: name,
+            name,
             pieces: pieces.to_vec(),
-            piece_length: piece_length,
-            files: files,
-            length: length,
+            piece_length,
+            files,
+            length,
         });
     }
 
@@ -132,7 +132,7 @@ impl Info {
     }
 
     pub fn verify_piece(&self, piece: &Vec<u8>, piece_idx: usize) -> bool {
-        Sha1::digest(piece).as_slice().to_owned() == self.get_piece(piece_idx)
+        Sha1::digest(piece).as_slice() == self.get_piece(piece_idx)
     }
 
     pub fn get_piece_length(&self) -> usize {

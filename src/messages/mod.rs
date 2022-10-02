@@ -91,10 +91,7 @@ impl Message {
     }
 
     pub fn is_request_message(&self) -> bool {
-        match self.content {
-            ContentType::Request(_) => true,
-            _ => false,
-        }
+        matches!(self.content, ContentType::Request(_))
     }
 }
 

@@ -27,11 +27,12 @@ pub fn download(
     }
 
     match handle.join() {
-        Err(err) => println!("{:?}", err),
-        Ok(_) => (),
-    };
-
-    Ok(())
+        Err(err) => {
+            println!("{:?}", err);
+            Err("Error in thread execution")
+        }
+        Ok(_) => Ok(()),
+    }
 }
 
 pub fn get_peer<'arr>(
@@ -44,5 +45,5 @@ pub fn get_peer<'arr>(
             return Some(Peer::new(stream));
         }
     }
-    return None;
+    None
 }

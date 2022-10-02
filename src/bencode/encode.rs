@@ -6,27 +6,24 @@ pub trait Encode {
 
 impl Encode for String {
     fn encode(&self) -> Vec<u8> {
-        let encoded_value = format!("{}:{}", self.chars().count(), self);
-        return encoded_value.as_bytes().to_vec();
+        format!("{}:{}", self.chars().count(), self).as_bytes().to_vec()
     }
 }
 
 impl Encode for usize {
     fn encode(&self) -> Vec<u8> {
-        let encoded_value = format!("i{}e", self.to_string());
-        return encoded_value.as_bytes().to_vec();
+        format!("i{}e", self.to_string()).as_bytes().to_vec()
     }
 }
 
 impl Encode for Vec<u8> {
     fn encode(&self) -> Vec<u8> {
-        let length = self.len();
-        return [
-            length.to_string().as_bytes().to_vec(),
+        [
+            self.len().to_string().as_bytes().to_vec(),
             ":".as_bytes().to_vec(),
             self.to_vec(),
         ]
-        .concat();
+        .concat()
     }
 }
 
@@ -36,8 +33,7 @@ impl<T: Encode> Encode for Vec<T> {
         for el in self {
             acc = [acc, el.encode()].concat();
         }
-        acc = [acc, "e".as_bytes().to_vec()].concat();
-        return acc;
+        [acc, "e".as_bytes().to_vec()].concat()
     }
 }
 
@@ -50,8 +46,7 @@ impl<T: Encode> Encode for HashMap<String, T> {
             let value = self.get(key).unwrap();
             acc = [acc, key.encode(), value.encode()].concat();
         }
-        acc = [acc, "e".as_bytes().to_vec()].concat();
-        return acc;
+        [acc, "e".as_bytes().to_vec()].concat()
     }
 }
 

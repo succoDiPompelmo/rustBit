@@ -57,7 +57,7 @@ pub fn parse_magnet(magnet_uri: Vec<u8>) -> Result<Magnet, &'static str> {
 
     let info_hash = get_info_hash(&magnet_uri);
 
-    return Ok(Magnet { info_hash });
+    Ok(Magnet { info_hash })
 }
 
 #[cfg(test)]

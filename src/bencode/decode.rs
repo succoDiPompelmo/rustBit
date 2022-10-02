@@ -18,11 +18,11 @@ impl Decoder {
 
     fn advance(&mut self) -> usize {
         self.current = self.current + 1;
-        return self.current;
+        self.current
     }
 
     fn get_current_byte(&self) -> u8 {
-        return self.contents[self.current];
+        self.contents[self.current]
     }
 
     fn get_consecutive_digits(&mut self) -> usize {
@@ -43,7 +43,7 @@ impl Decoder {
             }
         };
 
-        let integer: usize = match string_integer.parse() {
+        match string_integer.parse() {
             Ok(result) => result,
             Err(_) => {
                 println!("{:?}", string_integer);
@@ -52,9 +52,7 @@ impl Decoder {
                     self.current
                 )
             }
-        };
-
-        return integer;
+        }
     }
 
     fn parse_integer(&mut self) -> Metainfo {
@@ -65,7 +63,7 @@ impl Decoder {
             Some(b'e') => self.advance(),
             _ => self.advance(),
         };
-        return Metainfo::Integer(integer);
+        Metainfo::Integer(integer)
     }
 
     fn parse_string(&mut self) -> Metainfo {
@@ -75,7 +73,7 @@ impl Decoder {
 
         let b = &self.contents[self.current..self.current + integer];
         self.current = self.current + integer;
-        return Metainfo::String(b.to_vec());
+        Metainfo::String(b.to_vec())
     }
 
     fn parse_list(&mut self) -> Metainfo {
@@ -87,8 +85,7 @@ impl Decoder {
         }
 
         self.advance();
-
-        return Metainfo::List(list);
+        Metainfo::List(list)
     }
 
     fn parse_dictionary(&mut self) -> Metainfo {
@@ -105,23 +102,22 @@ impl Decoder {
         }
 
         self.advance();
-        return Metainfo::Dictionary(dictionary);
+        Metainfo::Dictionary(dictionary)
     }
 
     pub fn decode(&mut self) -> Metainfo {
-        let a = match self.contents.get(self.current) {
+        match self.contents.get(self.current) {
             None => Metainfo::Nothing(),
             Some(b'i') => self.parse_integer(),
             Some(b'l') => self.parse_list(),
             Some(b'd') => self.parse_dictionary(),
             Some(b'1'..=b'9') => self.parse_string(),
             Some(_) => Metainfo::Nothing(),
-        };
-        return a;
+        }
     }
 
     pub fn get_total_parsed_bytes(&self) -> usize {
-        return self.current;
+        self.current
     }
 }
 

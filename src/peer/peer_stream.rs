@@ -62,25 +62,24 @@ impl PeerStream {
             && self.stream.read(body).unwrap_or(0) == length
     }
 
-    // Rendere il metodo generico e creare il messaggio dove serve con un trait
     pub fn send_interested(&mut self) {
         self.stream
-            .write(&new_interested().as_bytes())
-            .or_else(|_| return Err("Error in interested request"))
+            .write_all(&new_interested().as_bytes())
+            .map_err(|_| "Error in interested request")
             .unwrap();
     }
 
     pub fn send_request(&mut self, block_length: u32, block_offset: u32, piece_index: u32) {
         self.stream
-            .write(&new_request(piece_index, block_offset, block_length).as_bytes())
-            .or_else(|_| return Err("Error in piece request"))
+            .write_all(&new_request(piece_index, block_offset, block_length).as_bytes())
+            .map_err(|_| "Error in piece request")
             .unwrap();
     }
 
     pub fn send_metadata_request(&mut self, extension_id: u8, index: usize) {
         self.stream
-            .write(&new_metadata(extension_id, index).as_bytes())
-            .or_else(|_| return Err("Error in metadata request"))
+            .write_all(&new_metadata(extension_id, index).as_bytes())
+            .map_err(|_| "Error in metadata request")
             .unwrap();
     }
 }

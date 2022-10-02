@@ -50,8 +50,7 @@ impl PeerManager {
     fn assemble_buffer(&self) -> Vec<u8> {
         self.buffer
             .iter()
-            .map(|el| el.get_content_data())
-            .flatten()
+            .flat_map(|el| el.get_content_data())
             .collect()
     }
 
@@ -92,7 +91,8 @@ fn download_info(peer: &mut Peer) -> Result<Info, &'static str> {
 
     loop {
         if let Some(info_buffer) = manager.try_assemble(peer) {
-            return Ok(Info::from_bytes(info_buffer)?);
+            let info = Info::from_bytes(info_buffer)?;
+            return Ok(info);
         }
 
         if manager.is_ready() {

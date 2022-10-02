@@ -17,7 +17,7 @@ fn read_file() -> Vec<u8> {
     let mut contents = Vec::new();
     file.read_to_end(&mut contents).unwrap();
 
-    return contents;
+    contents
 }
 
 fn main() -> std::io::Result<()> {

@@ -55,10 +55,7 @@ impl ExtensionMessage {
     }
 
     pub fn is_data(&self) -> bool {
-        match self.msg_type {
-            Some(1) => true,
-            _ => false,
-        }
+        matches!(self.msg_type, Some(1))
     }
 
     pub fn as_bytes(&self) -> Vec<u8> {

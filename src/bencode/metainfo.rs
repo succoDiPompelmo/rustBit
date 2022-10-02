@@ -13,27 +13,27 @@ pub enum Metainfo {
 pub fn get_string_content(metainfo_string: &Metainfo) -> Result<String, &'static str> {
     if let Metainfo::String(string_value) = metainfo_string {
         match str::from_utf8(string_value) {
-            Ok(string) => return Ok(string.to_owned()),
-            Err(_) => return Err("Error during UTF-8 string conversion"),
+            Ok(string) => Ok(string.to_owned()),
+            Err(_) => Err("Error during UTF-8 string conversion"),
         }
     } else {
-        return Err("No string metainfo found");
+        Err("No string metainfo found")
     }
 }
 
 pub fn get_integer_content(metainfo_string: &Metainfo) -> Result<usize, &'static str> {
     if let Metainfo::Integer(integer_value) = metainfo_string {
-        return Ok(*integer_value);
+        Ok(*integer_value)
     } else {
-        return Err("No string metainfo found");
+        Err("No string metainfo found")
     }
 }
 
 pub fn get_list_content(metainfo_list: &Metainfo) -> Result<&Vec<Metainfo>, &'static str> {
     if let Metainfo::List(list_values) = metainfo_list {
-        return Ok(&list_values);
+        Ok(&list_values)
     } else {
-        return Err("No list metainfo found");
+        Err("No list metainfo found")
     }
 }
 
@@ -43,7 +43,7 @@ pub fn get_dict_content(
     if let Metainfo::Dictionary(dict) = metainfo_dict {
         Ok(dict)
     } else {
-        return Err("No dict metainfo found");
+        Err("No dict metainfo found")
     }
 }
 
@@ -53,28 +53,28 @@ pub fn get_value_from_dict<'a>(
 ) -> Result<&'a Metainfo, &'static str> {
     let dict = get_dict_content(metainfo_dict)?;
     if let Some(value_metainfo) = dict.get(key) {
-        return Ok(value_metainfo);
+        Ok(value_metainfo)
     } else {
-        return Err("No key found in dict");
+        Err("No key found in dict")
     }
 }
 
 pub fn get_string_from_dict(metainfo_dict: &Metainfo, key: &str) -> Result<String, &'static str> {
     let dict = get_dict_content(metainfo_dict)?;
     if let Some(key_metainfo) = dict.get(key) {
-        return get_string_content(key_metainfo);
+        get_string_content(key_metainfo)
     } else {
-        return Err("No key found in dict");
+        Err("No key found in dict")
     }
 }
 
 pub fn get_integer_from_dict(metainfo_dict: &Metainfo, key: &str) -> Result<usize, &'static str> {
     let dict = get_dict_content(metainfo_dict)?;
     if let Some(Metainfo::Integer(key_value)) = dict.get(key) {
-        return Ok(*key_value);
+        Ok(*key_value)
     } else {
-        return Err("No key foundin dict");
-    };
+        Err("No key foundin dict")
+    }
 }
 
 pub fn get_list_from_dict<'a>(
@@ -84,9 +84,9 @@ pub fn get_list_from_dict<'a>(
     let dict = get_dict_content(metainfo_dict)?;
 
     if let Some(Metainfo::List(key_values)) = dict.get(key) {
-        return Ok(&key_values);
+        Ok(&key_values)
     } else {
-        return Err("No key foundin dict");
+        Err("No key foundin dict")
     }
 }
 
