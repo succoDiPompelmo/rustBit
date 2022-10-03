@@ -45,7 +45,7 @@ impl Torrent {
 
     pub fn from_info_hash(magnet: &Magnet) -> Result<Torrent, &'static str> {
         Ok(Torrent {
-            announce: "pippo".to_owned(),
+            announce: "".to_owned(),
             announce_list: None,
             info: None,
             info_hash: magnet.get_info_hash(),

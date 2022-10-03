@@ -13,19 +13,21 @@ struct PeerManager {
     buffer: Vec<Message>,
     buffer_capacity: usize,
     is_downloading: bool,
+    info_ready: bool,
 }
 
 impl PeerManager {
-    fn new(buffer_capacity: usize) -> PeerManager {
+    fn new(buffer_capacity: usize, info_ready: bool) -> PeerManager {
         PeerManager {
             buffer: vec![],
             buffer_capacity,
             is_downloading: false,
+            info_ready
         }
     }
 
     fn apply_message(&mut self, message: &Message) {
-        if message.is_extension_data_message() || message.is_request_message() {
+        if (message.is_extension_data_message() && !self.info_ready) || message.is_request_message() {
             self.buffer.push(message.clone());
             self.is_downloading = false;
         }
@@ -71,25 +73,27 @@ fn get_block_size(block_offset: usize, torrent_length: usize, piece_offset: usiz
     cmp::min(torrent_length - (block_offset + piece_offset), BLOCK_SIZE)
 }
 
-fn init_download(peer: &mut Peer) {
+fn init_download(peer: &mut Peer) -> Result<(), &'static str> {
     peer.get_stream().send_interested();
+    peer.get_stream().send_metadata_handshake_request();
 
-    loop {
+    for _ in 0..100 {
         peer.get_stream()
             .read_message()
             .map_or((), |msg| peer.apply_message(&msg));
 
         if peer.get_metadata_size() != 0 && !peer.is_choked() {
-            return;
+            return Ok(())
         }
     }
+    Err("Init download failed")
 }
 
 fn download_info(peer: &mut Peer) -> Result<Info, &'static str> {
     let mut manager =
-        PeerManager::new((0..peer.get_metadata_size()).step_by(INFO_PIECE_SIZE).len());
+        PeerManager::new((0..peer.get_metadata_size()).step_by(INFO_PIECE_SIZE).len(), false);
 
-    loop {
+    for _ in 0..10 {
         if let Some(info_buffer) = manager.try_assemble(peer) {
             let info = Info::from_bytes(info_buffer)?;
             return Ok(info);
@@ -100,10 +104,11 @@ fn download_info(peer: &mut Peer) -> Result<Info, &'static str> {
             manager.set_downloading();
         }
     }
+    Err("No info retrieved")
 }
 
 fn download_piece(peer: &mut Peer, info: &Info, piece_idx: usize) -> Result<Vec<u8>, &'static str> {
-    let mut manager = PeerManager::new((0..info.get_piece_length()).step_by(BLOCK_SIZE).len());
+    let mut manager = PeerManager::new((0..info.get_piece_length()).step_by(BLOCK_SIZE).len(), true);
 
     loop {
         if let Some(piece) = manager.try_assemble(peer) {
@@ -125,7 +130,7 @@ fn download_piece(peer: &mut Peer, info: &Info, piece_idx: usize) -> Result<Vec<
 }
 
 pub fn peer_thread(peer: &mut Peer, tx: Sender<Info>, piece_rx: Receiver<usize>) {
-    init_download(peer);
+    init_download(peer).unwrap();
     let info = download_info(peer).unwrap();
     tx.send(info.clone()).unwrap();
 

@@ -4,6 +4,8 @@ pub mod udp_tracker;
 
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
+use std::fs::File;
+use std::io::prelude::*;
 use std::str;
 
 use crate::torrent::Torrent;
@@ -21,6 +23,14 @@ pub struct PeerConnectionInfo {
     pub port: u16,
 }
 
+fn read_file() -> Vec<u8> {
+    let mut file = File::open("tracker_list.txt").unwrap();
+    let mut contents = Vec::new();
+    file.read_to_end(&mut contents).unwrap();
+
+    contents
+}
+
 fn random_peer_id() -> String {
     thread_rng()
         .sample_iter(&Alphanumeric)
@@ -32,12 +42,12 @@ fn random_peer_id() -> String {
 impl Tracker {
     pub fn init_tracker(torrent: &mut Torrent) -> Result<Tracker, &'static str> {
         let info_hash = &torrent.get_info_hash();
-        // let tracker_list = str::from_utf8(read_file().as_slice()).unwrap().to_owned();
-        let announce_list = torrent.get_announce_list();
+        let tracker_list = str::from_utf8(read_file().as_slice()).unwrap().to_owned();
+        // let announce_list = torrent.get_announce_list();
 
         let trackers = [
-            announce_list,
-            // tracker_list.split("\n").collect::<Vec<String>>(),
+            // announce_list,
+            tracker_list.split("\n").map(|el| el.to_owned()).collect::<Vec<String>>(),
         ]
         .concat();
 
@@ -53,7 +63,9 @@ impl Tracker {
             if let Ok(tracker) = tracker_result {
                 println!("Found {:?} peers", tracker.peers.len());
                 let peers = tracker.get_peers_info();
-                download(peers.to_vec(), peer_id, torrent)?;
+                if download(peers.to_vec(), peer_id, torrent).is_err() {
+                    println!("Download failed for tracker")
+                }
             }
         }
         Err("No tracker found")
