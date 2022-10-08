@@ -52,7 +52,7 @@ impl HandshakeMessage {
 }
 
 pub fn perform(
-    peer_info: PeerConnectionInfo,
+    peer_info: &PeerConnectionInfo,
     info_hash: &[u8],
     peer_id: &str,
 ) -> Result<TcpStream, &'static str> {

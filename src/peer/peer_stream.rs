@@ -84,19 +84,17 @@ impl PeerStream {
     }
 
     pub fn send_metadata_handshake_request(&mut self) {
-
         let content = [
             &60_u32.to_be_bytes(),
             [0x14].as_slice(),
             [0x00].as_slice(),
-            "d1:md11:ut_metadatai1e6:ut_pexi2ee13:metadata_sizei28282ee".as_bytes()
-        ].concat();
+            "d1:md11:ut_metadatai1e6:ut_pexi2ee13:metadata_sizei28282ee".as_bytes(),
+        ]
+        .concat();
 
         self.stream
             .write_all(&content)
             .map_err(|_| "Error in metadata request")
             .unwrap();
     }
-
-    
 }

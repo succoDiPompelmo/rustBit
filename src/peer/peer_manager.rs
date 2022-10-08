@@ -1,5 +1,5 @@
 use std::cmp;
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::{Arc, Mutex};
 
 use crate::messages::Message;
 use crate::peer::Peer;
@@ -22,12 +22,13 @@ impl PeerManager {
             buffer: vec![],
             buffer_capacity,
             is_downloading: false,
-            info_ready
+            info_ready,
         }
     }
 
     fn apply_message(&mut self, message: &Message) {
-        if (message.is_extension_data_message() && !self.info_ready) || message.is_request_message() {
+        if (message.is_extension_data_message() && !self.info_ready) || message.is_request_message()
+        {
             self.buffer.push(message.clone());
             self.is_downloading = false;
         }
@@ -83,15 +84,18 @@ fn init_download(peer: &mut Peer) -> Result<(), &'static str> {
             .map_or((), |msg| peer.apply_message(&msg));
 
         if peer.get_metadata_size() != 0 && !peer.is_choked() {
-            return Ok(())
+            return Ok(());
         }
     }
     Err("Init download failed")
 }
 
-fn download_info(peer: &mut Peer) -> Result<Info, &'static str> {
-    let mut manager =
-        PeerManager::new((0..peer.get_metadata_size()).step_by(INFO_PIECE_SIZE).len(), false);
+pub fn download_info(peer: &mut Peer) -> Result<Info, &'static str> {
+    init_download(peer)?;
+    let mut manager = PeerManager::new(
+        (0..peer.get_metadata_size()).step_by(INFO_PIECE_SIZE).len(),
+        false,
+    );
 
     for _ in 0..10 {
         if let Some(info_buffer) = manager.try_assemble(peer) {
@@ -108,7 +112,9 @@ fn download_info(peer: &mut Peer) -> Result<Info, &'static str> {
 }
 
 fn download_piece(peer: &mut Peer, info: &Info, piece_idx: usize) -> Result<Vec<u8>, &'static str> {
-    let mut manager = PeerManager::new((0..info.get_piece_length()).step_by(BLOCK_SIZE).len(), true);
+    init_download(peer)?;
+    let mut manager =
+        PeerManager::new((0..info.get_piece_length()).step_by(BLOCK_SIZE).len(), true);
 
     loop {
         if let Some(piece) = manager.try_assemble(peer) {
@@ -129,27 +135,26 @@ fn download_piece(peer: &mut Peer, info: &Info, piece_idx: usize) -> Result<Vec<
     }
 }
 
-pub fn peer_thread(peer: &mut Peer, tx: Sender<Info>, piece_rx: Receiver<usize>) {
-    init_download(peer).unwrap();
-    let info = download_info(peer).unwrap();
-    tx.send(info.clone()).unwrap();
+pub fn peer_thread(peer: &mut Peer, info: &Info, lock_counter: Arc<Mutex<usize>>) {
+    let mut piece_idx = 0;
 
     loop {
-        if let Ok(piece_idx) = piece_rx.recv() {
-            println!("{:?}", piece_idx);
-            let piece = download_piece(peer, &info, piece_idx).unwrap();
-            if info.verify_piece(&piece, piece_idx) {
-                write_piece(
-                    piece,
-                    piece_idx,
-                    info.get_piece_length(),
-                    info.get_files().unwrap(),
-                )
-            } else {
-                panic!();
-            }
+        if let Ok(mut counter) = lock_counter.lock() {
+            piece_idx = *counter + 1;
+            *counter += 1;
+        }
+
+        println!("{:?} by peer {:?}", piece_idx, peer.get_stream());
+        let piece = download_piece(peer, &info, piece_idx).unwrap();
+        if info.verify_piece(&piece, piece_idx) {
+            write_piece(
+                piece,
+                piece_idx,
+                info.get_piece_length(),
+                info.get_files().unwrap(),
+            )
         } else {
-            return;
+            panic!();
         }
     }
 }

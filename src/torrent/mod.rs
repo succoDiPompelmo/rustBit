@@ -55,13 +55,6 @@ impl Torrent {
     pub fn get_info_hash(&self) -> Vec<u8> {
         self.info_hash.to_vec()
     }
-
-    pub fn get_announce_list(&self) -> Vec<String> {
-        match &self.announce_list {
-            Some(announce_list) => announce_list.iter().cloned().flatten().collect(),
-            None => vec![self.announce.to_owned()],
-        }
-    }
 }
 
 fn compute_info_hash(bencoded_info: Vec<u8>) -> Vec<u8> {
@@ -147,12 +140,6 @@ impl Info {
             Some(files) => files.iter().map(|file| file.get_length()).sum::<usize>(),
             None => self.length.unwrap(),
         }
-    }
-
-    pub fn get_total_pieces(&self) -> usize {
-        (0..self.get_total_length())
-            .step_by(self.get_piece_length())
-            .len()
     }
 
     pub fn get_files(&self) -> Result<Vec<File>, &'static str> {

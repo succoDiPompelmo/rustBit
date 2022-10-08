@@ -60,7 +60,9 @@ fn connect_to_tracker(
 }
 
 fn read_upd_packet(socket: &UdpSocket, buffer: &mut [u8]) -> Result<usize, &'static str> {
-    socket.set_read_timeout(Some(Duration::from_millis(200))).unwrap();
+    socket
+        .set_read_timeout(Some(Duration::from_millis(200)))
+        .unwrap();
 
     let (resp_size, _) = socket
         .recv_from(buffer)

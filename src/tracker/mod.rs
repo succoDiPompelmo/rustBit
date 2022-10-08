@@ -17,7 +17,7 @@ pub struct Tracker {
     pub peers: Vec<PeerConnectionInfo>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct PeerConnectionInfo {
     pub ip: String,
     pub port: u16,
@@ -47,7 +47,10 @@ impl Tracker {
 
         let trackers = [
             // announce_list,
-            tracker_list.split("\n").map(|el| el.to_owned()).collect::<Vec<String>>(),
+            tracker_list
+                .split("\n")
+                .map(|el| el.to_owned())
+                .collect::<Vec<String>>(),
         ]
         .concat();
 
@@ -63,7 +66,7 @@ impl Tracker {
             if let Ok(tracker) = tracker_result {
                 println!("Found {:?} peers", tracker.peers.len());
                 let peers = tracker.get_peers_info();
-                if download(peers.to_vec(), peer_id, torrent).is_err() {
+                if download(peers, peer_id, torrent).is_err() {
                     println!("Download failed for tracker")
                 }
             }
