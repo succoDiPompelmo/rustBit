@@ -17,8 +17,6 @@ pub fn get_tracker(
         tracker, url_encoded_info_hash, peer_id
     );
 
-    println!("{:?}", tracker_url);
-
     let result = get_peers(tracker_url)?;
     let tracker_metainfo = Decoder::init(result).decode();
     let tracker = from_metainfo(tracker_metainfo)?;
@@ -47,8 +45,6 @@ fn get_peers(url: String) -> Result<Vec<u8>, &'static str> {
 }
 
 fn call_tracker_for_peers(url: String) -> Result<ureq::Response, &'static str> {
-    println!("{:?}", url);
-
     for _ in 1..2 {
         let response_result = ureq::get(&url)
             .timeout(Duration::from_millis(500))

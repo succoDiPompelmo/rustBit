@@ -11,8 +11,6 @@ pub fn get_tracker(
     let socket = UdpSocket::bind("0.0.0.0:34222").expect("couldn't bind to address");
     let tracker_hostname = get_tracker_hostname(tracker_url);
 
-    println!("{:?}", tracker_hostname);
-
     let transaction_id: &[u8] = &[0x00, 0x01, 0x19, 0x9e];
     let connection_id = connect_to_tracker(transaction_id, &socket, tracker_hostname)?;
 

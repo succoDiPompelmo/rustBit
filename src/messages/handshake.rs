@@ -59,8 +59,11 @@ pub fn perform(
     let peer_url = format!("{}:{}", peer_info.ip, peer_info.port);
     let server: SocketAddr = peer_url.parse().expect("Unable to parse socket address");
 
-    let connect_timeout = Duration::from_secs(1);
-    let stream = TcpStream::connect_timeout(&server, connect_timeout).map_err(|_| "Error")?;
+    let connect_timeout = Duration::from_secs(3);
+    let stream = TcpStream::connect_timeout(&server, connect_timeout).map_err(|err| {
+        println!("{:?}", err);
+        "Error"
+    })?;
 
     send_handshake(&stream, info_hash, peer_id)?;
     let handshake_response_message = read_handshake(&stream)?;

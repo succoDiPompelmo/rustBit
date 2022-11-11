@@ -62,6 +62,8 @@ impl PeerStream {
             && self.stream.read(body).unwrap_or(0) == length
     }
 
+    // Generic message and its function to transform into as_bytes
+
     pub fn send_interested(&mut self) {
         self.stream
             .write_all(&new_interested().as_bytes())
@@ -83,18 +85,18 @@ impl PeerStream {
             .unwrap();
     }
 
-    pub fn send_metadata_handshake_request(&mut self) {
-        let content = [
-            &60_u32.to_be_bytes(),
-            [0x14].as_slice(),
-            [0x00].as_slice(),
-            "d1:md11:ut_metadatai1e6:ut_pexi2ee13:metadata_sizei28282ee".as_bytes(),
-        ]
-        .concat();
+    // pub fn send_metadata_handshake_request(&mut self) {
+    //     let content = [
+    //         &60_u32.to_be_bytes(),
+    //         [0x14].as_slice(),
+    //         [0x00].as_slice(),
+    //         "d1:md11:ut_metadatai1e6:ut_pexi2ee13:metadata_sizei28282ee".as_bytes(),
+    //     ]
+    //     .concat();
 
-        self.stream
-            .write_all(&content)
-            .map_err(|_| "Error in metadata request")
-            .unwrap();
-    }
+    //     self.stream
+    //         .write_all(&content)
+    //         .map_err(|_| "Error in metadata request")
+    //         .unwrap();
+    // }
 }

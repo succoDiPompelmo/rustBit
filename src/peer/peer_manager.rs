@@ -76,7 +76,7 @@ fn get_block_size(block_offset: usize, torrent_length: usize, piece_offset: usiz
 
 fn init_download(peer: &mut Peer) -> Result<(), &'static str> {
     peer.get_stream().send_interested();
-    peer.get_stream().send_metadata_handshake_request();
+    // peer.get_stream().send_metadata_handshake_request();
 
     for _ in 0..100 {
         peer.get_stream()
@@ -144,8 +144,10 @@ pub fn peer_thread(peer: &mut Peer, info: &Info, lock_counter: Arc<Mutex<usize>>
             *counter += 1;
         }
 
+        // Check if it's the last piece and conclude gracefully the download.
+
         println!("{:?} by peer {:?}", piece_idx, peer.get_stream());
-        let piece = download_piece(peer, &info, piece_idx).unwrap();
+        let piece = download_piece(peer, info, piece_idx).unwrap();
         if info.verify_piece(&piece, piece_idx) {
             write_piece(
                 piece,

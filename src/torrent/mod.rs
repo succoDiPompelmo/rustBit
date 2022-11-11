@@ -11,7 +11,7 @@ use crate::bencode::metainfo::Metainfo;
 use crate::torrent::file::File;
 use crate::torrent::magnet::Magnet;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Torrent {
     announce: String,
     announce_list: Option<Vec<Vec<String>>>,

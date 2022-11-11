@@ -7,9 +7,12 @@ use rand::{thread_rng, Rng};
 use std::fs::File;
 use std::io::prelude::*;
 use std::str;
+use std::sync::mpsc;
+use std::sync::mpsc::{Receiver, Sender};
+use std::thread;
 
 use crate::torrent::Torrent;
-use crate::tracker::manager::download;
+use crate::tracker::manager::manager_thread;
 
 #[derive(Debug)]
 pub struct Tracker {
@@ -17,7 +20,7 @@ pub struct Tracker {
     pub peers: Vec<PeerConnectionInfo>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PeerConnectionInfo {
     pub ip: String,
     pub port: u16,
@@ -43,20 +46,28 @@ impl Tracker {
     pub fn init_tracker(torrent: &mut Torrent) -> Result<Tracker, &'static str> {
         let info_hash = &torrent.get_info_hash();
         let tracker_list = str::from_utf8(read_file().as_slice()).unwrap().to_owned();
+        let peer_id = &random_peer_id();
         // let announce_list = torrent.get_announce_list();
 
         let trackers = [
             // announce_list,
             tracker_list
-                .split("\n")
+                .split('\n')
                 .map(|el| el.to_owned())
                 .collect::<Vec<String>>(),
         ]
         .concat();
 
-        for tracker_name in trackers {
-            let peer_id = &random_peer_id();
+        let (tx, rx): (
+            Sender<Vec<PeerConnectionInfo>>,
+            Receiver<Vec<PeerConnectionInfo>>,
+        ) = mpsc::channel();
 
+        let thread_info_hash = info_hash.clone();
+
+        thread::spawn(move || manager_thread(rx, &random_peer_id(), &thread_info_hash));
+
+        for tracker_name in trackers {
             let tracker_result = match &tracker_name[0..3] {
                 "htt" => tcp_tracker::get_tracker(info_hash, peer_id, &tracker_name),
                 "udp" => udp_tracker::get_tracker(info_hash, peer_id, &tracker_name),
@@ -66,9 +77,7 @@ impl Tracker {
             if let Ok(tracker) = tracker_result {
                 println!("Found {:?} peers", tracker.peers.len());
                 let peers = tracker.get_peers_info();
-                if download(peers, peer_id, torrent).is_err() {
-                    println!("Download failed for tracker")
-                }
+                tx.send(peers.to_vec()).unwrap();
             }
         }
         Err("No tracker found")
