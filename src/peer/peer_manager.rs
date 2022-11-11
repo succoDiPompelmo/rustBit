@@ -3,8 +3,8 @@ use std::sync::{Arc, Mutex};
 
 use crate::messages::Message;
 use crate::peer::Peer;
+use crate::torrent::info::Info;
 use crate::torrent::writer::write_piece;
-use crate::torrent::Info;
 
 const BLOCK_SIZE: usize = 16384;
 const INFO_PIECE_SIZE: usize = 16384;

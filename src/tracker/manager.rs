@@ -5,7 +5,7 @@ use std::thread;
 use crate::messages::handshake;
 use crate::peer::peer_manager::{download_info, peer_thread};
 use crate::peer::Peer;
-use crate::torrent::Info;
+use crate::torrent::info::Info;
 use crate::tracker::PeerConnectionInfo;
 
 pub fn manager_thread(
