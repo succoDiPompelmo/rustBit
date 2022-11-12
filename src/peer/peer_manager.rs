@@ -1,7 +1,7 @@
 use std::cmp;
 use std::sync::{Arc, Mutex};
 
-use crate::messages::Message;
+use crate::messages::{Message, new_interested};
 use crate::peer::Peer;
 use crate::torrent::info::Info;
 use crate::torrent::writer::write_piece;
@@ -75,7 +75,7 @@ fn get_block_size(block_offset: usize, torrent_length: usize, piece_offset: usiz
 }
 
 fn init_download(peer: &mut Peer) -> Result<(), &'static str> {
-    peer.get_stream().send_interested();
+    peer.send_message(new_interested());
     // peer.get_stream().send_metadata_handshake_request();
 
     for _ in 0..100 {

@@ -2,7 +2,7 @@ use std::io::prelude::*;
 use std::net::TcpStream;
 use std::{thread, time};
 
-use crate::messages::{new_interested, new_metadata, new_request, ContentType, Message};
+use crate::messages::Message;
 
 #[derive(Debug)]
 pub struct PeerStream {
@@ -42,7 +42,7 @@ impl PeerStream {
         let id = buffer[0];
 
         if length == 0 {
-            return Some(Message::new(ContentType::Nothing(), length, id));
+            return Some(Message::new_raw(vec![], length, id));
         } else {
             length -= 1
         }
@@ -62,26 +62,10 @@ impl PeerStream {
             && self.stream.read(body).unwrap_or(0) == length
     }
 
-    // Generic message and its function to transform into as_bytes
-
-    pub fn send_interested(&mut self) {
+    pub fn send_message(&mut self, message: Message) {
         self.stream
-            .write_all(&new_interested().as_bytes())
+            .write_all(&message.as_bytes())
             .map_err(|_| "Error in interested request")
-            .unwrap();
-    }
-
-    pub fn send_request(&mut self, block_length: u32, block_offset: u32, piece_index: u32) {
-        self.stream
-            .write_all(&new_request(piece_index, block_offset, block_length).as_bytes())
-            .map_err(|_| "Error in piece request")
-            .unwrap();
-    }
-
-    pub fn send_metadata_request(&mut self, extension_id: u8, index: usize) {
-        self.stream
-            .write_all(&new_metadata(extension_id, index).as_bytes())
-            .map_err(|_| "Error in metadata request")
             .unwrap();
     }
 

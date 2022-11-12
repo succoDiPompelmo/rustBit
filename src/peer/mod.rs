@@ -4,7 +4,7 @@ pub mod peer_stream;
 use std::collections::HashMap;
 use std::net::TcpStream;
 
-use crate::messages::{ContentType, Message};
+use crate::messages::{ContentType, Message, new_metadata, new_request};
 use crate::peer::peer_stream::PeerStream;
 
 #[derive(Debug)]
@@ -35,18 +35,22 @@ impl Peer {
         &mut self.stream
     }
 
+    pub fn send_message(&mut self, message: Message) {
+        self.stream.send_message(message);
+    }
+
     pub fn get_metadata_size(&self) -> usize {
         self.metadata_size
     }
 
     pub fn request_info_piece(&mut self, offset: usize) {
-        self.stream
-            .send_metadata_request(*self.extensions.get("ut_metadata").unwrap(), offset);
+        let message = new_metadata(*self.extensions.get("ut_metadata").unwrap(), offset);
+        self.stream.send_message(message);
     }
 
     pub fn request_piece(&mut self, block_size: u32, block_offset: u32, piece_idx: u32) {
-        self.stream
-            .send_request(block_size, block_offset, piece_idx);
+        let message = new_request(piece_idx, block_offset, block_size);
+        self.stream.send_message(message);
     }
 
     fn apply_message(&mut self, message: &Message) {
