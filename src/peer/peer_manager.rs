@@ -39,7 +39,7 @@ impl PeerManager {
     }
 
     fn try_assemble(&mut self, peer: &mut Peer) -> Option<Vec<u8>> {
-        peer.get_stream().read_message().map_or((), |msg| {
+        peer.read_message().map_or((), |msg| {
             peer.apply_message(&msg);
             self.apply_message(&msg);
         });
@@ -79,8 +79,7 @@ fn init_download(peer: &mut Peer) -> Result<(), &'static str> {
     // peer.get_stream().send_metadata_handshake_request();
 
     for _ in 0..100 {
-        peer.get_stream()
-            .read_message()
+        peer.read_message()
             .map_or((), |msg| peer.apply_message(&msg));
 
         if peer.get_metadata_size() != 0 && !peer.is_choked() {
@@ -152,7 +151,7 @@ pub fn peer_thread(peer: &mut Peer, info: &Info, lock_counter: Arc<Mutex<usize>>
 
         // Check if it's the last piece and conclude gracefully the download.
 
-        println!("{:?} by peer {:?}", piece_idx, peer.get_stream());
+        println!("{:?} by peer", piece_idx);
         let piece = download_piece(peer, info, piece_idx).unwrap();
         if info.verify_piece(&piece, piece_idx) {
             write_piece(

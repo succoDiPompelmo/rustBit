@@ -31,12 +31,8 @@ impl Peer {
         self.choked
     }
 
-    pub fn get_stream(&mut self) -> &mut PeerStream {
-        &mut self.stream
-    }
-
     pub fn send_message(&mut self, message: Message) {
-        self.stream.send_message(message);
+        self.stream.write_stream(&message.as_bytes());
     }
 
     pub fn get_metadata_size(&self) -> usize {
@@ -45,6 +41,12 @@ impl Peer {
 
     pub fn get_extension_id_by_name(&self, name: &str) -> u8 {
         *self.extensions.get(name).unwrap()
+    }
+
+    pub fn read_message(&mut self) -> Option<Message> {
+        self.stream
+            .read_stream()
+            .map(|(body, id, length)| Message::new_raw(body, length, id))
     }
 
     fn apply_message(&mut self, message: &Message) {

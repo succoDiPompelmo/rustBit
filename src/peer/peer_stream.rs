@@ -1,8 +1,6 @@
 use std::io::prelude::*;
 use std::net::TcpStream;
-use std::{thread, time};
-
-use crate::messages::Message;
+use std::{thread, time, vec};
 
 #[derive(Debug)]
 pub struct PeerStream {
@@ -24,7 +22,7 @@ impl PeerStream {
         }
     }
 
-    pub fn read_message(&mut self) -> Option<Message> {
+    pub fn read_stream(&mut self) -> Option<(Vec<u8>, u8, u32)> {
         if !self.has_messages() {
             return None;
         }
@@ -42,7 +40,7 @@ impl PeerStream {
         let id = buffer[0];
 
         if length == 0 {
-            return Some(Message::new_raw(vec![], length, id));
+            return Some((vec![], id, 0));
         } else {
             length -= 1
         }
@@ -50,7 +48,7 @@ impl PeerStream {
         let mut body = vec![0; length as usize];
         for retry in 1..40 {
             if self.peek_and_read(&mut body, length as usize) {
-                return Some(Message::new_raw(body, length, id));
+                return Some((body, id, length));
             }
             thread::sleep(time::Duration::from_millis(5 * retry));
         }
@@ -62,9 +60,9 @@ impl PeerStream {
             && self.stream.read(body).unwrap_or(0) == length
     }
 
-    pub fn send_message(&mut self, message: Message) {
+    pub fn write_stream(&mut self, buffer: &[u8]) {
         self.stream
-            .write_all(&message.as_bytes())
+            .write_all(buffer)
             .map_err(|_| "Error in interested request")
             .unwrap();
     }
