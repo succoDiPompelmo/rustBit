@@ -22,7 +22,7 @@ pub fn manager_thread(
 
         for peer_info in &peers_info {
             if let Ok(stream) = handshake::perform(peer_info, info_hash, peer_id) {
-                let mut peer = Peer::new(stream);
+                let mut peer = Peer::new(Some(stream));
                 let info = info.clone();
                 let counter_clone = piece_counter.clone();
                 handles.push(thread::spawn(move || {
@@ -48,7 +48,7 @@ pub fn get_info(
 ) -> Result<Info, &'static str> {
     for peer_info in peers_info {
         if let Ok(stream) = handshake::perform(peer_info, info_hash, peer_id) {
-            let mut peer = Peer::new(stream);
+            let mut peer = Peer::new(Some(stream));
             if let Ok(info) = download_info(&mut peer) {
                 println!("Info download correctly for the peer {:?}", peer_info);
                 return Ok(info);

@@ -16,6 +16,7 @@ pub struct Info {
 }
 
 impl Info {
+    #[cfg(test)]
     pub fn new(
         files: Option<Vec<File>>,
         length: Option<usize>,

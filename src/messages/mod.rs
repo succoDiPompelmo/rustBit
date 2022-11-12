@@ -1,8 +1,12 @@
+pub mod bitfield;
 pub mod extension;
 pub mod handshake;
 pub mod interested;
 pub mod request;
 
+use std::collections::HashMap;
+
+use crate::messages::bitfield::BitfieldMessage;
 use crate::messages::extension::ExtensionMessage;
 use crate::messages::interested::InterestedMessage;
 use crate::messages::request::RequestMessage;
@@ -12,6 +16,7 @@ pub enum ContentType {
     Request(RequestMessage),
     Extension(ExtensionMessage),
     Interested(InterestedMessage),
+    Bitfield(BitfieldMessage),
     Nothing(),
 }
 
@@ -27,7 +32,8 @@ impl Message {
     // during the read of a message.
     pub fn new_raw(body: Vec<u8>, length: u32, id: u8) -> Message {
         let content = match id {
-            5 => ContentType::Interested(InterestedMessage::from_bytes(&body)),
+            2 => ContentType::Interested(InterestedMessage::from_bytes()),
+            5 => ContentType::Bitfield(BitfieldMessage::from_bytes(&body)),
             7 | 6 => ContentType::Request(RequestMessage::from_bytes(&body)),
             20 => ContentType::Extension(ExtensionMessage::from_bytes(&body)),
             _ => ContentType::Nothing(),
@@ -61,7 +67,8 @@ impl Message {
             ContentType::Nothing() => vec![],
             ContentType::Extension(extension) => extension.get_data(),
             ContentType::Request(request) => request.get_block_data(),
-            ContentType::Interested(interested) => interested.get_bitfield(),
+            ContentType::Interested(_) => vec![],
+            ContentType::Bitfield(bitfield) => bitfield.get_bitfield(),
         }
     }
 
@@ -71,6 +78,7 @@ impl Message {
             ContentType::Extension(extension) => extension.as_bytes(),
             ContentType::Request(request) => request.as_bytes(),
             ContentType::Interested(interested) => interested.as_bytes(),
+            ContentType::Bitfield(bitfield) => bitfield.as_bytes(),
         };
 
         [
@@ -95,8 +103,35 @@ impl Message {
     }
 }
 
+#[cfg(test)]
+pub fn new_generic_message(id: u8, length: u32) -> Message {
+    Message::new(ContentType::Nothing(), length, id)
+}
+
 pub fn new_interested() -> Message {
     Message::new(ContentType::Nothing(), 1, 2)
+}
+
+#[cfg(test)]
+pub fn new_bitfield(bitfield: Vec<u8>) -> Message {
+    Message::new(
+        ContentType::Bitfield(BitfieldMessage::from_bytes(&bitfield)),
+        bitfield.len() as u32,
+        5,
+    )
+}
+
+#[cfg(test)]
+pub fn new_extension(
+    length: u32,
+    extensions: HashMap<String, u8>,
+    metadata_size: usize,
+) -> Message {
+    Message::new(
+        ContentType::Extension(ExtensionMessage::new(extensions, metadata_size)),
+        length,
+        20,
+    )
 }
 
 pub fn new_request(piece_index: u32, block_offset: u32, block_length: u32) -> Message {

@@ -13,17 +13,17 @@ pub struct Peer {
     bitfield: Vec<bool>,
     metadata_size: usize,
     extensions: HashMap<String, u8>,
-    stream: PeerStream,
+    stream: Option<PeerStream>,
 }
 
 impl Peer {
-    pub fn new(stream: TcpStream) -> Peer {
+    pub fn new(stream: Option<TcpStream>) -> Peer {
         Peer {
             choked: true,
             bitfield: vec![],
             metadata_size: 0,
             extensions: HashMap::new(),
-            stream: PeerStream::new(stream),
+            stream: stream.map(PeerStream::new),
         }
     }
 
@@ -31,8 +31,9 @@ impl Peer {
         self.choked
     }
 
-    pub fn send_message(&mut self, message: Message) {
-        self.stream.write_stream(&message.as_bytes());
+    #[cfg(test)]
+    pub fn get_bitfield(&self) -> Vec<bool> {
+        self.bitfield.to_vec()
     }
 
     pub fn get_metadata_size(&self) -> usize {
@@ -41,12 +42,6 @@ impl Peer {
 
     pub fn get_extension_id_by_name(&self, name: &str) -> u8 {
         *self.extensions.get(name).unwrap()
-    }
-
-    pub fn read_message(&mut self) -> Option<Message> {
-        self.stream
-            .read_stream()
-            .map(|(body, id, length)| Message::new_raw(body, length, id))
     }
 
     fn apply_message(&mut self, message: &Message) {
@@ -59,8 +54,12 @@ impl Peer {
                 println!("UNCHOKE MESSAGE");
                 self.choked = false;
             }
-            5 => {
+            2 => {
                 println!("BITFIELD MESSAGE");
+                self.apply_content(message);
+            }
+            5 => {
+                println!("INTERESTED MESSAGE");
                 self.apply_content(message)
             }
             20 => {
@@ -73,10 +72,9 @@ impl Peer {
 
     fn apply_content(&mut self, message: &Message) {
         match message.get_content() {
-            ContentType::Interested(content) => {
-                self.bitfield = content.get_bitfield_as_bit_vector()
-            }
+            ContentType::Bitfield(content) => self.bitfield = content.get_bitfield_as_bit_vector(),
             ContentType::Extension(content) => {
+                println!("{:?}", content);
                 if content.is_handshake() {
                     self.extensions = content.get_extensions().clone();
                     self.metadata_size = content.get_metadata_size().unwrap_or(0);
@@ -85,7 +83,66 @@ impl Peer {
             _ => (),
         }
     }
+
+    pub fn read_message(&mut self) -> Option<Message> {
+        match &mut self.stream {
+            Some(stream) => stream
+                .read_stream()
+                .map(|(body, id, length)| Message::new_raw(body, length, id)),
+            None => None,
+        }
+    }
+
+    pub fn send_message(&mut self, message: Message) {
+        match &mut self.stream {
+            Some(stream) => stream.write_stream(&message.as_bytes()),
+            None => (),
+        }
+    }
 }
 
 #[cfg(test)]
-mod test {}
+mod test {
+    use std::{collections::HashMap, vec};
+
+    use crate::messages::{new_bitfield, new_extension, new_generic_message};
+
+    use super::Peer;
+
+    #[test]
+    fn test_apply_choke_messages() {
+        let mut peer = Peer::new(None);
+
+        let choke_message = new_generic_message(0, 5);
+        peer.apply_message(&choke_message);
+        assert!(peer.is_choked());
+
+        let unchoke_message = new_generic_message(1, 5);
+        peer.apply_message(&unchoke_message);
+        assert!(!peer.is_choked());
+    }
+
+    #[test]
+    fn test_apply_bitfield_message() {
+        let mut peer = Peer::new(None);
+
+        let bitfield = vec![0x10];
+        let bitfield_message = new_bitfield(bitfield);
+        peer.apply_message(&bitfield_message);
+        assert_eq!(
+            peer.get_bitfield(),
+            vec![false, false, false, true, false, false, false, false]
+        )
+    }
+
+    #[test]
+    fn test_apply_extension_message() {
+        let mut peer = Peer::new(None);
+
+        let extension_message =
+            new_extension(10, HashMap::from([("ut_metadata".to_owned(), 2)]), 123);
+        peer.apply_message(&extension_message);
+        assert_eq!(peer.get_extension_id_by_name("ut_metadata"), 2);
+        assert_eq!(peer.get_metadata_size(), 123);
+    }
+}

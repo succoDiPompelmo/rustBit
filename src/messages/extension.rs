@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::hash::Hash;
 
 use crate::bencode::decode::Decoder;
 use crate::bencode::encode::Encode;
@@ -15,6 +16,17 @@ pub struct ExtensionMessage {
 }
 
 impl ExtensionMessage {
+    pub fn new(extensions: HashMap<String, u8>, metadata_size: usize) -> ExtensionMessage {
+        ExtensionMessage {
+            id: 20,
+            msg_type: None,
+            metadata_size: Some(metadata_size),
+            extensions,
+            piece: None,
+            data: vec![],
+        }
+    }
+
     pub fn from_bytes(bytes: &[u8]) -> ExtensionMessage {
         let mut decoder = Decoder::init(bytes[1..].to_vec());
         let content = decoder.decode();
