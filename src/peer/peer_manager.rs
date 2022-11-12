@@ -1,7 +1,7 @@
 use std::cmp;
 use std::sync::{Arc, Mutex};
 
-use crate::messages::{Message, new_interested};
+use crate::messages::{new_interested, new_metadata, new_request, Message};
 use crate::peer::Peer;
 use crate::torrent::info::Info;
 use crate::torrent::writer::write_piece;
@@ -103,8 +103,10 @@ pub fn download_info(peer: &mut Peer) -> Result<Info, &'static str> {
             return Ok(info);
         }
 
+        let metadata_id = peer.get_extension_id_by_name("ut_metadata");
+
         if manager.is_ready() {
-            peer.request_info_piece(manager.get_offset(1));
+            peer.send_message(new_metadata(metadata_id, manager.get_offset(1)));
             manager.set_downloading();
         }
     }
@@ -129,7 +131,11 @@ fn download_piece(peer: &mut Peer, info: &Info, piece_idx: usize) -> Result<Vec<
                 piece_idx * info.get_piece_length(),
             );
 
-            peer.request_piece(block_size as u32, block_offset as u32, piece_idx as u32);
+            peer.send_message(new_request(
+                piece_idx as u32,
+                block_offset as u32,
+                block_size as u32,
+            ));
             manager.set_downloading();
         }
     }
