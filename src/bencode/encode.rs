@@ -161,7 +161,7 @@ mod test {
         let none: Option<usize> = None;
         let output = encode_dict_entry(&"key".to_owned(), &none);
 
-        let expected_output = vec![];
+        let expected_output: Vec<u8> = vec![];
         assert_eq!(output, expected_output);
     }
 
@@ -200,7 +200,7 @@ mod test {
         let input: Option<String> = None;
         let output = input.encode();
 
-        let expected_output = vec![];
+        let expected_output: Vec<u8> = vec![];
         assert_eq!(output, expected_output);
     }
 }

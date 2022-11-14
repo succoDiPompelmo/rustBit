@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::hash::Hash;
 
 use crate::bencode::decode::Decoder;
 use crate::bencode::encode::Encode;

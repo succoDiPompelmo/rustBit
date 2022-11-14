@@ -20,6 +20,7 @@ mod test {
     #[test]
     fn test_as_bytes() {
         let message = InterestedMessage {};
-        assert_eq!(message.as_bytes(), vec![]);
+        let expect: Vec<u8> = vec![];
+        assert_eq!(message.as_bytes(), expect);
     }
 }

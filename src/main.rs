@@ -1,17 +1,17 @@
-use std::env;
-use std::fs::File;
-use std::io::prelude::*;
-
-use crate::torrent::magnet;
-use crate::torrent::Torrent;
-use crate::tracker::Tracker;
-
 mod bencode;
 mod integration_test;
 mod messages;
 mod peer;
 mod torrent;
 mod tracker;
+
+use std::fs::File;
+use std::io::prelude::*;
+use std::thread;
+
+use crate::torrent::magnet;
+use crate::torrent::Torrent;
+use crate::tracker::Tracker;
 
 fn read_file() -> Vec<u8> {
     let mut file = File::open("torrent_files/HouseOfDragons.torrent").unwrap();
@@ -21,14 +21,11 @@ fn read_file() -> Vec<u8> {
     contents
 }
 
-fn main() -> std::io::Result<()> {
-    let args: Vec<String> = env::args().collect();
+use actix_web::{post, App, HttpResponse, HttpServer};
 
-    if args.len() != 2 {
-        panic!("Provide magnet link or path to a torrent file")
-    }
-
-    let torrent_source = &args[1];
+#[post("/torrent")]
+async fn add_magnet(torrent_source: String) -> HttpResponse {
+    println!("{:?}", torrent_source);
 
     let mut torrent = if torrent_source.ends_with(".torrent") {
         let contents = read_file();
@@ -39,6 +36,14 @@ fn main() -> std::io::Result<()> {
         Torrent::from_info_hash(&magnet).unwrap()
     };
 
-    Tracker::init_tracker(&mut torrent).unwrap();
-    Ok(())
+    thread::spawn(move || Tracker::init_tracker(&mut torrent));
+    HttpResponse::Ok().body("Torrent registered")
+}
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    HttpServer::new(|| App::new().service(add_magnet))
+        .bind(("127.0.0.1", 8080))?
+        .run()
+        .await
 }
