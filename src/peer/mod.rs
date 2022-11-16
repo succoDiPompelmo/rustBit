@@ -99,6 +99,13 @@ impl Peer {
             None => (),
         }
     }
+
+    pub fn send_metadata_handshake_request(&mut self) {
+        match &mut self.stream {
+            Some(stream) => stream.send_metadata_handshake_request(),
+            _ => ()
+        };
+    }
 }
 
 #[cfg(test)]

@@ -76,7 +76,7 @@ fn get_block_size(block_offset: usize, torrent_length: usize, piece_offset: usiz
 
 fn init_download(peer: &mut Peer) -> Result<(), &'static str> {
     peer.send_message(new_interested());
-    // peer.get_stream().send_metadata_handshake_request();
+    peer.send_metadata_handshake_request();
 
     for _ in 0..100 {
         peer.read_message()
