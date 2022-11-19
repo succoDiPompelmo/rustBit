@@ -35,6 +35,7 @@ impl BitfieldMessage {
     }
 }
 
+#[cfg(test)]
 mod test {
     use super::*;
 

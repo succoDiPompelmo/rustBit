@@ -15,6 +15,8 @@ pub struct ExtensionMessage {
 }
 
 impl ExtensionMessage {
+    
+    #[cfg(test)]
     pub fn new(extensions: HashMap<String, u8>, metadata_size: usize) -> ExtensionMessage {
         ExtensionMessage {
             id: 20,
