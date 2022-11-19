@@ -1,4 +1,5 @@
 mod bencode;
+mod common;
 mod integration_test;
 mod messages;
 mod peer;

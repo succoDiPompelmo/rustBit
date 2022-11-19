@@ -12,7 +12,7 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
 
 use crate::torrent::Torrent;
-use crate::tracker::manager::manager_thread;
+use crate::tracker::manager::thread_evo;
 
 #[derive(Debug)]
 pub struct Tracker {
@@ -65,7 +65,7 @@ impl Tracker {
 
         let thread_info_hash = info_hash.clone();
 
-        thread::spawn(move || manager_thread(rx, &random_peer_id(), &thread_info_hash));
+        thread::spawn(move || thread_evo(rx, &random_peer_id(), &thread_info_hash));
 
         for tracker_name in trackers {
             let tracker_result = match &tracker_name[0..3] {

@@ -113,7 +113,6 @@ pub fn download_info(peer: &mut Peer) -> Result<Info, &'static str> {
 }
 
 fn download_piece(peer: &mut Peer, info: &Info, piece_idx: usize) -> Result<Vec<u8>, &'static str> {
-    init_download(peer)?;
     let mut manager =
         PeerManager::new((0..info.get_piece_length()).step_by(BLOCK_SIZE).len(), true);
 
@@ -142,6 +141,8 @@ fn download_piece(peer: &mut Peer, info: &Info, piece_idx: usize) -> Result<Vec<
 
 pub fn peer_thread(peer: &mut Peer, info: &Info, lock_counter: Arc<Mutex<usize>>) {
     let mut piece_idx = 0;
+
+    init_download(peer).unwrap();
 
     loop {
         if let Ok(mut counter) = lock_counter.lock() {

@@ -74,7 +74,6 @@ impl Peer {
         match message.get_content() {
             ContentType::Bitfield(content) => self.bitfield = content.get_bitfield_as_bit_vector(),
             ContentType::Extension(content) => {
-                println!("{:?}", content);
                 if content.is_handshake() {
                     self.extensions = content.get_extensions().clone();
                     self.metadata_size = content.get_metadata_size().unwrap_or(0);
@@ -103,7 +102,7 @@ impl Peer {
     pub fn send_metadata_handshake_request(&mut self) {
         match &mut self.stream {
             Some(stream) => stream.send_metadata_handshake_request(),
-            _ => ()
+            _ => (),
         };
     }
 }

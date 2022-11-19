@@ -2,58 +2,79 @@ use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+use std::net::SocketAddr;
+use std::net::TcpStream;
+use std::time::Duration;
+
 use crate::messages::handshake;
 use crate::peer::peer_manager::{download_info, peer_thread};
 use crate::peer::Peer;
 use crate::torrent::info::Info;
 use crate::tracker::PeerConnectionInfo;
 
-pub fn manager_thread(
+use rayon::prelude::*;
+
+pub fn thread_evo(
     peers_info_receiver: Receiver<Vec<PeerConnectionInfo>>,
     peer_id: &str,
     info_hash: &[u8],
 ) -> Result<(), &'static str> {
+    let mut info: Option<Info> = None;
+    let mut handles = vec![];
+    let piece_counter = Arc::new(Mutex::new(0));
+
     loop {
-        let peers_info = peers_info_receiver.recv().map_err(|_| "A")?;
-        println!("Read peers_info");
-        let piece_counter = Arc::new(Mutex::new(0));
-        let info = get_info(&peers_info, peer_id, info_hash)?;
-        let mut handles = vec![];
+        let streams: Vec<Result<TcpStream, &str>> = peers_info_receiver
+            .recv()
+            .unwrap()
+            .into_par_iter()
+            .map(connect)
+            .filter(|stream_result| stream_result.is_ok())
+            .collect();
 
-        for peer_info in &peers_info {
-            if let Ok(stream) = handshake::perform(peer_info, info_hash, peer_id) {
-                let mut peer = Peer::new(Some(stream));
-                let info = info.clone();
-                let counter_clone = piece_counter.clone();
-                handles.push(thread::spawn(move || {
-                    peer_thread(&mut peer, &info, counter_clone)
-                }));
-            }
-        }
+        println!("{:?}", streams);
 
-        loop {
-            for handle in &handles {
-                if handle.is_finished() {
-                    return Err("CIAO");
+        for stream in streams {
+            if let Some(info) = &info {
+                let stream = stream?;
+                if let Ok(()) = handshake::perform(&stream, info_hash, peer_id) {
+                    let mut peer = Peer::new(Some(stream));
+                    let info = info.clone();
+                    let counter_clone = piece_counter.clone();
+                    handles.push(thread::spawn(move || {
+                        peer_thread(&mut peer, &info, counter_clone)
+                    }));
+                }  
+            } else {
+                info = match get_info(stream?, peer_id, info_hash) {
+                    Ok(info) => {
+                        println!("INFO IS COMPLETED");
+                        Some(info)
+                    },
+                    Err(_) => None,
                 }
             }
         }
     }
 }
 
-pub fn get_info(
-    peers_info: &Vec<PeerConnectionInfo>,
-    peer_id: &str,
-    info_hash: &[u8],
-) -> Result<Info, &'static str> {
-    for peer_info in peers_info {
-        if let Ok(stream) = handshake::perform(peer_info, info_hash, peer_id) {
-            let mut peer = Peer::new(Some(stream));
-            if let Ok(info) = download_info(&mut peer) {
-                println!("Info download correctly for the peer {:?}", peer_info);
-                return Ok(info);
-            }
+fn connect(peer_connection_info: PeerConnectionInfo) -> Result<TcpStream, &'static str> {
+    let peer_url = format!("{}:{}", peer_connection_info.ip, peer_connection_info.port);
+    let server: SocketAddr = peer_url.parse().expect("Unable to parse socket address");
+
+    let connect_timeout = Duration::from_secs(3);
+    TcpStream::connect_timeout(&server, connect_timeout).map_err(|_| "Error")
+}
+
+fn get_info(stream: TcpStream, peer_id: &str, info_hash: &[u8]) -> Result<Info, &'static str> {
+    if let Ok(()) = handshake::perform(&stream, info_hash, peer_id) {
+        let mut peer = Peer::new(Some(stream));
+        if let Ok(info) = download_info(&mut peer) {
+            return Ok(info);
+        } else {
+            println!("Error downloading info")
         }
     }
+    println!("Error in handshake");
     Err("No info downloaded")
 }

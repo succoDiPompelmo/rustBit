@@ -1,5 +1,3 @@
-use std::vec;
-
 #[derive(Debug, Clone)]
 pub struct InterestedMessage {}
 

@@ -4,6 +4,7 @@ pub mod handshake;
 pub mod interested;
 pub mod request;
 
+#[cfg(test)]
 use std::collections::HashMap;
 
 use crate::messages::bitfield::BitfieldMessage;
