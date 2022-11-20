@@ -6,7 +6,7 @@ use std::net::SocketAddr;
 use std::net::TcpStream;
 use std::time::Duration;
 
-use crate::peer::peer_manager::{download_info, peer_thread};
+use crate::peer::manager::{download_info, peer_thread};
 use crate::peer::Peer;
 use crate::torrent::info::Info;
 use crate::tracker::PeerConnectionInfo;

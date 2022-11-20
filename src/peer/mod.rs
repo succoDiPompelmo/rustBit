@@ -1,13 +1,13 @@
 pub mod handshake;
-pub mod peer_manager;
-pub mod peer_stream;
+pub mod manager;
+pub mod stream;
 
 use std::collections::HashMap;
 use std::net::TcpStream;
 
 use crate::messages::{ContentType, Message};
 use crate::peer::handshake::Handshake;
-use crate::peer::peer_stream::PeerStream;
+use crate::peer::stream::PeerStream;
 
 #[derive(Debug)]
 pub struct Peer {
