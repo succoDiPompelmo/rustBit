@@ -1,6 +1,5 @@
 pub mod bitfield;
 pub mod extension;
-pub mod handshake;
 pub mod interested;
 pub mod request;
 

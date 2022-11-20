@@ -1,5 +1,6 @@
 use std::io::prelude::*;
 use std::net::TcpStream;
+use std::time::Duration;
 use std::{thread, time, vec};
 
 #[derive(Debug)]
@@ -60,10 +61,25 @@ impl PeerStream {
             && self.stream.read(body).unwrap_or(0) == length
     }
 
+    pub fn read_handshake(&mut self) -> Result<[u8; 68], &'static str> {
+        let mut buffer: [u8; 68] = [0x00; 68];
+
+        self.stream
+            .set_read_timeout(Some(Duration::from_millis(800)))
+            .unwrap();
+        match self.stream.read(&mut buffer) {
+            Ok(68) => Ok(buffer),
+            _ => Err("Error reading handshake response"),
+        }
+    }
+
     pub fn write_stream(&mut self, buffer: &[u8]) {
         self.stream
             .write_all(buffer)
-            .map_err(|_| "Error in interested request")
+            .map_err(|err| {
+                println!("Error {:?} in writing buffer {:?}", err, buffer);
+                "Error in writing to stream"
+            })
             .unwrap();
     }
 

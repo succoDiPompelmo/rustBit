@@ -6,7 +6,6 @@ use std::net::SocketAddr;
 use std::net::TcpStream;
 use std::time::Duration;
 
-use crate::messages::handshake;
 use crate::peer::peer_manager::{download_info, peer_thread};
 use crate::peer::Peer;
 use crate::torrent::info::Info;
@@ -28,6 +27,7 @@ pub fn thread_evo(
             .recv()
             .unwrap()
             .into_par_iter()
+            // .map(|peer_conn_info| peer_conn_info.get_peer_endpoint())
             .map(connect)
             .filter(|stream_result| stream_result.is_ok())
             .collect();
@@ -35,22 +35,23 @@ pub fn thread_evo(
         println!("{:?}", streams);
 
         for stream in streams {
+            let mut peer = Peer::new(Some(stream?));
+            if peer.handshake(info_hash, peer_id).is_err() {
+                continue;
+            }
+
             if let Some(info) = &info {
-                let stream = stream?;
-                if let Ok(()) = handshake::perform(&stream, info_hash, peer_id) {
-                    let mut peer = Peer::new(Some(stream));
-                    let info = info.clone();
-                    let counter_clone = piece_counter.clone();
-                    handles.push(thread::spawn(move || {
-                        peer_thread(&mut peer, &info, counter_clone)
-                    }));
-                }  
+                let info = info.clone();
+                let counter_clone = piece_counter.clone();
+                handles.push(thread::spawn(move || {
+                    peer_thread(&mut peer, &info, counter_clone)
+                }));
             } else {
-                info = match get_info(stream?, peer_id, info_hash) {
+                info = match download_info(&mut peer) {
                     Ok(info) => {
                         println!("INFO IS COMPLETED");
                         Some(info)
-                    },
+                    }
                     Err(_) => None,
                 }
             }
@@ -64,17 +65,4 @@ fn connect(peer_connection_info: PeerConnectionInfo) -> Result<TcpStream, &'stat
 
     let connect_timeout = Duration::from_secs(3);
     TcpStream::connect_timeout(&server, connect_timeout).map_err(|_| "Error")
-}
-
-fn get_info(stream: TcpStream, peer_id: &str, info_hash: &[u8]) -> Result<Info, &'static str> {
-    if let Ok(()) = handshake::perform(&stream, info_hash, peer_id) {
-        let mut peer = Peer::new(Some(stream));
-        if let Ok(info) = download_info(&mut peer) {
-            return Ok(info);
-        } else {
-            println!("Error downloading info")
-        }
-    }
-    println!("Error in handshake");
-    Err("No info downloaded")
 }

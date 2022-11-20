@@ -1,10 +1,14 @@
+pub mod handshake;
 pub mod peer_manager;
 pub mod peer_stream;
 
 use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::net::TcpStream;
+use std::time::Duration;
 
 use crate::messages::{ContentType, Message};
+use crate::peer::handshake::Handshake;
 use crate::peer::peer_stream::PeerStream;
 
 #[derive(Debug)]
@@ -24,6 +28,40 @@ impl Peer {
             metadata_size: 0,
             extensions: HashMap::new(),
             stream: stream.map(PeerStream::new),
+        }
+    }
+
+    pub fn connect(endpoint: String) -> Result<Peer, &'static str> {
+        let server: SocketAddr = endpoint.parse().expect("Unable to parse socket address");
+
+        let connect_timeout = Duration::from_secs(3);
+
+        match TcpStream::connect_timeout(&server, connect_timeout) {
+            Ok(stream) => Ok(Peer::new(Some(stream))),
+            Err(_) => Err("Ciao"),
+        }
+    }
+
+    pub fn handshake(&mut self, info_hash: &[u8], peer_id: &str) -> Result<(), &'static str> {
+        match &mut self.stream {
+            Some(stream) => {
+                let handshake_request = Handshake::new(info_hash, peer_id);
+                stream.write_stream(&handshake_request.as_bytes());
+
+                match stream.read_handshake() {
+                    Ok(buffer) => {
+                        println!("{:?}", buffer);
+                        let hadnshake_response = Handshake::from_bytes(buffer);
+                        if hadnshake_response.get_info_hash() != *info_hash {
+                            return Err("Info hash not matching in handshake response");
+                        }
+                    }
+                    Err(_) => return Err("Reading handhsake response has failed"),
+                }
+
+                Ok(())
+            }
+            None => Err("No stream available"),
         }
     }
 

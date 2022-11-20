@@ -26,6 +26,12 @@ pub struct PeerConnectionInfo {
     pub port: u16,
 }
 
+impl PeerConnectionInfo {
+    pub fn get_peer_endpoint(&self) -> String {
+        format!("{}:{}", self.ip, self.port)
+    }
+}
+
 fn read_file() -> Vec<u8> {
     let mut file = File::open("tracker_list.txt").unwrap();
     let mut contents = Vec::new();
