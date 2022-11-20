@@ -23,20 +23,28 @@ pub fn thread_evo(
     let piece_counter = Arc::new(Mutex::new(0));
 
     loop {
-        let streams: Vec<Result<TcpStream, &str>> = peers_info_receiver
+        let endpoints: Vec<String> = peers_info_receiver
             .recv()
             .unwrap()
             .into_par_iter()
-            // .map(|peer_conn_info| peer_conn_info.get_peer_endpoint())
-            .map(connect)
-            .filter(|stream_result| stream_result.is_ok())
+            .map(|peer_conn_info| peer_conn_info.get_peer_endpoint())
+            .filter(|endpoint| connect(endpoint).is_ok())
             .collect();
 
-        println!("{:?}", streams);
+        println!("{:?}", endpoints);
 
-        for stream in streams {
-            let mut peer = Peer::new(Some(stream?));
-            if peer.handshake(info_hash, peer_id).is_err() {
+        for endpoint in endpoints {
+
+            let mut peer = match connect(&endpoint) {
+                Ok(stream) => Peer::new(Some(stream)),
+                Err(err) => {
+                    println!("Error during peer connection: {:?}", err);
+                    continue
+                },
+            };
+
+            if let Err(err) = peer.handshake(info_hash, peer_id) {
+                println!("Error during peer handshake {:?}", err);
                 continue;
             }
 
@@ -59,10 +67,8 @@ pub fn thread_evo(
     }
 }
 
-fn connect(peer_connection_info: PeerConnectionInfo) -> Result<TcpStream, &'static str> {
-    let peer_url = format!("{}:{}", peer_connection_info.ip, peer_connection_info.port);
-    let server: SocketAddr = peer_url.parse().expect("Unable to parse socket address");
-
+fn connect(endpoint: &str) -> Result<TcpStream, &'static str> {
+    let server: SocketAddr = endpoint.parse().expect("Unable to parse socket address");
     let connect_timeout = Duration::from_secs(3);
     TcpStream::connect_timeout(&server, connect_timeout).map_err(|_| "Error")
 }

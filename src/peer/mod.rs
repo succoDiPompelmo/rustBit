@@ -3,9 +3,7 @@ pub mod peer_manager;
 pub mod peer_stream;
 
 use std::collections::HashMap;
-use std::net::SocketAddr;
 use std::net::TcpStream;
-use std::time::Duration;
 
 use crate::messages::{ContentType, Message};
 use crate::peer::handshake::Handshake;
@@ -27,18 +25,7 @@ impl Peer {
             bitfield: vec![],
             metadata_size: 0,
             extensions: HashMap::new(),
-            stream: stream.map(PeerStream::new),
-        }
-    }
-
-    pub fn connect(endpoint: String) -> Result<Peer, &'static str> {
-        let server: SocketAddr = endpoint.parse().expect("Unable to parse socket address");
-
-        let connect_timeout = Duration::from_secs(3);
-
-        match TcpStream::connect_timeout(&server, connect_timeout) {
-            Ok(stream) => Ok(Peer::new(Some(stream))),
-            Err(_) => Err("Ciao"),
+            stream: stream.map(PeerStream::new)
         }
     }
 
