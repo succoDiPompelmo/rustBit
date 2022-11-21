@@ -3,11 +3,12 @@ pub mod manager;
 pub mod stream;
 
 use std::collections::HashMap;
-use std::net::TcpStream;
 
 use crate::messages::{ContentType, Message};
 use crate::peer::handshake::Handshake;
-use crate::peer::stream::PeerStream;
+use crate::peer::stream::{
+    read_handshake, read_stream, send_metadata_handshake_request, write_stream, StreamInterface,
+};
 
 #[derive(Debug)]
 pub struct Peer {
@@ -15,40 +16,35 @@ pub struct Peer {
     bitfield: Vec<bool>,
     metadata_size: usize,
     extensions: HashMap<String, u8>,
-    stream: Option<PeerStream>,
+    stream: StreamInterface,
 }
 
 impl Peer {
-    pub fn new(stream: Option<TcpStream>) -> Peer {
+    pub fn new(stream: StreamInterface) -> Peer {
         Peer {
             choked: true,
             bitfield: vec![],
             metadata_size: 0,
             extensions: HashMap::new(),
-            stream: stream.map(PeerStream::new)
+            stream,
         }
     }
 
     pub fn handshake(&mut self, info_hash: &[u8], peer_id: &str) -> Result<(), &'static str> {
-        match &mut self.stream {
-            Some(stream) => {
-                let handshake_request = Handshake::new(info_hash, peer_id);
-                stream.write_stream(&handshake_request.as_bytes());
+        let handshake_request = Handshake::new(info_hash, peer_id);
+        write_stream(&mut self.stream, &handshake_request.as_bytes());
 
-                match stream.read_handshake() {
-                    Ok(buffer) => {
-                        println!("{:?}", buffer);
-                        let hadnshake_response = Handshake::from_bytes(buffer);
-                        if hadnshake_response.get_info_hash() != *info_hash {
-                            return Err("Info hash not matching in handshake response");
-                        }
-                    }
-                    Err(_) => return Err("Reading handhsake response has failed"),
+        match read_handshake(&mut self.stream) {
+            Ok(buffer) => {
+                let hadnshake_response = Handshake::from_bytes(buffer);
+                if hadnshake_response.get_info_hash() != *info_hash {
+                    Err("Info hash not matching in handshake response")
+                } else {
+                    Ok(())
                 }
-
-                Ok(())
+                
             }
-            None => Err("No stream available"),
+            Err(_) => Err("Reading handhsake response has failed"),
         }
     }
 
@@ -109,26 +105,15 @@ impl Peer {
     }
 
     pub fn read_message(&mut self) -> Option<Message> {
-        match &mut self.stream {
-            Some(stream) => stream
-                .read_stream()
-                .map(|(body, id, length)| Message::new_raw(body, length, id)),
-            None => None,
-        }
+        read_stream(&mut self.stream).map(|(body, id, length)| Message::new_raw(body, length, id))
     }
 
     pub fn send_message(&mut self, message: Message) {
-        match &mut self.stream {
-            Some(stream) => stream.write_stream(&message.as_bytes()),
-            None => (),
-        }
+        write_stream(&mut self.stream, &message.as_bytes())
     }
 
     pub fn send_metadata_handshake_request(&mut self) {
-        match &mut self.stream {
-            Some(stream) => stream.send_metadata_handshake_request(),
-            _ => (),
-        };
+        send_metadata_handshake_request(&mut self.stream)
     }
 }
 
@@ -136,13 +121,16 @@ impl Peer {
 mod test {
     use std::{collections::HashMap, vec};
 
-    use crate::messages::{new_bitfield, new_extension, new_generic_message};
+    use crate::{
+        messages::{new_bitfield, new_extension, new_generic_message},
+        peer::stream::StreamInterface,
+    };
 
     use super::Peer;
 
     #[test]
     fn test_apply_choke_messages() {
-        let mut peer = Peer::new(None);
+        let mut peer = Peer::new(StreamInterface::Nothing());
 
         let choke_message = new_generic_message(0, 5);
         peer.apply_message(&choke_message);
@@ -155,7 +143,7 @@ mod test {
 
     #[test]
     fn test_apply_bitfield_message() {
-        let mut peer = Peer::new(None);
+        let mut peer = Peer::new(StreamInterface::Nothing());
 
         let bitfield = vec![0x10];
         let bitfield_message = new_bitfield(bitfield);
@@ -168,7 +156,7 @@ mod test {
 
     #[test]
     fn test_apply_extension_message() {
-        let mut peer = Peer::new(None);
+        let mut peer = Peer::new(StreamInterface::Nothing());
 
         let extension_message =
             new_extension(10, HashMap::from([("ut_metadata".to_owned(), 2)]), 123);

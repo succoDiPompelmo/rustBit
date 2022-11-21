@@ -13,6 +13,7 @@ rand = "0.8.5"
 base32 = "0.4.0"
 actix-web = "4"
 rayon = "1.5"
+mock-io = "0.3.2"
 
 [profile.bench]
 debug = true

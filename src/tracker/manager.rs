@@ -7,6 +7,7 @@ use std::net::TcpStream;
 use std::time::Duration;
 
 use crate::peer::manager::{download_info, peer_thread};
+use crate::peer::stream::StreamInterface;
 use crate::peer::Peer;
 use crate::torrent::info::Info;
 use crate::tracker::PeerConnectionInfo;
@@ -34,13 +35,12 @@ pub fn thread_evo(
         println!("{:?}", endpoints);
 
         for endpoint in endpoints {
-
             let mut peer = match connect(&endpoint) {
-                Ok(stream) => Peer::new(Some(stream)),
+                Ok(stream) => Peer::new(StreamInterface::Tcp(stream)),
                 Err(err) => {
                     println!("Error during peer connection: {:?}", err);
-                    continue
-                },
+                    continue;
+                }
             };
 
             if let Err(err) = peer.handshake(info_hash, peer_id) {
