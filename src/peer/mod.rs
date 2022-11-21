@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use crate::messages::{ContentType, Message};
 use crate::peer::handshake::Handshake;
 use crate::peer::stream::{
-    read_handshake, read_stream, send_metadata_handshake_request, write_stream, StreamInterface,
+    read_stream, send_metadata_handshake_request, write_stream, StreamInterface,
 };
 
 #[derive(Debug)]
@@ -34,17 +34,16 @@ impl Peer {
         let handshake_request = Handshake::new(info_hash, peer_id);
         write_stream(&mut self.stream, &handshake_request.as_bytes());
 
-        match read_handshake(&mut self.stream) {
-            Ok(buffer) => {
-                let hadnshake_response = Handshake::from_bytes(buffer);
+        match read_stream(&mut self.stream) {
+            Some((buffer, _, 68)) => {
+                let hadnshake_response = Handshake::from_bytes(&buffer);
                 if hadnshake_response.get_info_hash() != *info_hash {
                     Err("Info hash not matching in handshake response")
                 } else {
                     Ok(())
                 }
-                
             }
-            Err(_) => Err("Reading handhsake response has failed"),
+            _ => Err("Reading handhsake response has failed"),
         }
     }
 

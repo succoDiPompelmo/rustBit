@@ -77,12 +77,11 @@ impl Write for MockStream {
 }
 
 impl MockStream {
-    pub fn peek(&mut self, buf: &[u8]) -> Result<usize> {
-        if buf.len() > self.reader.get_ref().len() {
-            Ok(self.reader.get_ref().len())
-        } else {
-            Ok(buf.len())
-        }
+    pub fn peek(&mut self, buf: &mut [u8]) -> Result<usize> {
+        let starting_position = self.reader.position();
+        let output_buffer = self.reader.read(buf);
+        self.reader.set_position(starting_position);
+        output_buffer
     }
 }
 

@@ -18,7 +18,7 @@ impl Handshake {
         }
     }
 
-    pub fn from_bytes(buffer: [u8; 68]) -> Handshake {
+    pub fn from_bytes(buffer: &[u8]) -> Handshake {
         Handshake {
             protocol_identifier_length: buffer[0],
             protocol_identifier: buffer[1..20].to_vec(),

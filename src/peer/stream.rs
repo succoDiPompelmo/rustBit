@@ -78,6 +78,14 @@ pub fn read_stream(stream: &mut StreamInterface) -> Option<(Vec<u8>, u8, u32)> {
         return None;
     }
 
+    let mut buffer: [u8; 68] = [0x00; 68];
+    if stream.peek(&mut buffer).ok() == Some(68) && buffer[0] == 0x13 {
+        if stream.read(&mut buffer).is_err() {
+            return None;
+        }
+        return Some((buffer.to_vec(), 19, 68));
+    }
+
     let mut buffer: [u8; 4] = [0x00; 4];
     if stream.read(&mut buffer).is_err() {
         return None;
@@ -114,18 +122,6 @@ pub fn write_stream(stream: &mut StreamInterface, buffer: &[u8]) {
             "Error in writing to stream"
         })
         .unwrap();
-}
-
-pub fn read_handshake(stream: &mut StreamInterface) -> Result<[u8; 68], &'static str> {
-    let mut buffer: [u8; 68] = [0x00; 68];
-
-    stream
-        .set_read_timeout(Some(Duration::from_millis(800)))
-        .unwrap();
-    match stream.read(&mut buffer) {
-        Ok(68) => Ok(buffer),
-        _ => Err("Error reading handshake response"),
-    }
 }
 
 pub fn send_metadata_handshake_request(stream: &mut StreamInterface) {
@@ -237,5 +233,17 @@ mod test {
         let mut e = StreamInterface::Mocked(s);
 
         assert_eq!(read_stream(&mut e), None);
+    }
+
+    #[test]
+    fn test_read_stream_handshake() {
+        let mut s = MockStream::new();
+        let mut handshake = [0x00; 68];
+        handshake[0] = 0x13;
+        s.push_bytes_to_read(handshake.as_slice());
+        let mut e = StreamInterface::Mocked(s);
+
+        let expect: (Vec<u8>, u8, u32) = (handshake.to_vec(), 19, 68);
+        assert_eq!(read_stream(&mut e), Some(expect));
     }
 }
