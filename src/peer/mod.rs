@@ -1,11 +1,10 @@
-pub mod handshake;
 pub mod manager;
 pub mod stream;
 
 use std::collections::HashMap;
 
+use crate::messages::handshake::HandshakeMessage;
 use crate::messages::{ContentType, Message};
-use crate::peer::handshake::Handshake;
 use crate::peer::stream::{
     read_stream, send_metadata_handshake_request, write_stream, StreamInterface,
 };
@@ -13,38 +12,35 @@ use crate::peer::stream::{
 #[derive(Debug)]
 pub struct Peer {
     choked: bool,
+    active: bool,
     bitfield: Vec<bool>,
     metadata_size: usize,
     extensions: HashMap<String, u8>,
     stream: StreamInterface,
+    info_hash: Vec<u8>,
 }
 
 impl Peer {
-    pub fn new(stream: StreamInterface) -> Peer {
+    pub fn new(stream: StreamInterface, info_hash: &[u8]) -> Peer {
         Peer {
             choked: true,
             bitfield: vec![],
             metadata_size: 0,
             extensions: HashMap::new(),
             stream,
+            active: false,
+            info_hash: info_hash.to_vec(),
         }
     }
 
     pub fn handshake(&mut self, info_hash: &[u8], peer_id: &str) -> Result<(), &'static str> {
-        let handshake_request = Handshake::new(info_hash, peer_id);
+        let handshake_request = HandshakeMessage::new(info_hash, peer_id);
         write_stream(&mut self.stream, &handshake_request.as_bytes());
 
-        match read_stream(&mut self.stream) {
-            Some((buffer, _, 68)) => {
-                let hadnshake_response = Handshake::from_bytes(&buffer);
-                if hadnshake_response.get_info_hash() != *info_hash {
-                    Err("Info hash not matching in handshake response")
-                } else {
-                    Ok(())
-                }
-            }
-            _ => Err("Reading handhsake response has failed"),
-        }
+        self.read_message()
+            .map_or((), |msg| self.apply_message(&msg));
+
+        Ok(())
     }
 
     pub fn is_choked(&self) -> bool {
@@ -82,6 +78,10 @@ impl Peer {
                 println!("INTERESTED MESSAGE");
                 self.apply_content(message)
             }
+            19 => {
+                println!("HANDSHAKE MESSAGE");
+                self.apply_content(message)
+            }
             20 => {
                 println!("EXTENSION MESSAGE");
                 self.apply_content(message)
@@ -99,7 +99,10 @@ impl Peer {
                     self.metadata_size = content.get_metadata_size().unwrap_or(0);
                 }
             }
-            _ => (),
+            ContentType::Handshake(handshake) => {
+                self.active = self.info_hash == handshake.get_info_hash()
+            }
+            _ => println!("{:?}", message),
         }
     }
 
@@ -129,7 +132,7 @@ mod test {
 
     #[test]
     fn test_apply_choke_messages() {
-        let mut peer = Peer::new(StreamInterface::Nothing());
+        let mut peer = Peer::new(StreamInterface::Nothing(), &[]);
 
         let choke_message = new_generic_message(0, 5);
         peer.apply_message(&choke_message);
@@ -142,7 +145,7 @@ mod test {
 
     #[test]
     fn test_apply_bitfield_message() {
-        let mut peer = Peer::new(StreamInterface::Nothing());
+        let mut peer = Peer::new(StreamInterface::Nothing(), &[]);
 
         let bitfield = vec![0x10];
         let bitfield_message = new_bitfield(bitfield);
@@ -155,7 +158,7 @@ mod test {
 
     #[test]
     fn test_apply_extension_message() {
-        let mut peer = Peer::new(StreamInterface::Nothing());
+        let mut peer = Peer::new(StreamInterface::Nothing(), &[]);
 
         let extension_message =
             new_extension(10, HashMap::from([("ut_metadata".to_owned(), 2)]), 123);

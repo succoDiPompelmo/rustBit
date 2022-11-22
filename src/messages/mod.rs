@@ -1,5 +1,6 @@
 pub mod bitfield;
 pub mod extension;
+pub mod handshake;
 pub mod interested;
 pub mod request;
 
@@ -8,6 +9,7 @@ use std::collections::HashMap;
 
 use crate::messages::bitfield::BitfieldMessage;
 use crate::messages::extension::ExtensionMessage;
+use crate::messages::handshake::HandshakeMessage;
 use crate::messages::interested::InterestedMessage;
 use crate::messages::request::RequestMessage;
 
@@ -17,6 +19,7 @@ pub enum ContentType {
     Extension(ExtensionMessage),
     Interested(InterestedMessage),
     Bitfield(BitfieldMessage),
+    Handshake(HandshakeMessage),
     Nothing(),
 }
 
@@ -36,6 +39,7 @@ impl Message {
             5 => ContentType::Bitfield(BitfieldMessage::from_bytes(&body)),
             7 | 6 => ContentType::Request(RequestMessage::from_bytes(&body)),
             20 => ContentType::Extension(ExtensionMessage::from_bytes(&body)),
+            19 => ContentType::Handshake(HandshakeMessage::from_bytes(&body)),
             _ => ContentType::Nothing(),
         };
 
@@ -69,6 +73,7 @@ impl Message {
             ContentType::Request(request) => request.get_block_data(),
             ContentType::Interested(_) => vec![],
             ContentType::Bitfield(bitfield) => bitfield.get_bitfield(),
+            ContentType::Handshake(_handshake) => vec![],
         }
     }
 
@@ -79,6 +84,7 @@ impl Message {
             ContentType::Request(request) => request.as_bytes(),
             ContentType::Interested(interested) => interested.as_bytes(),
             ContentType::Bitfield(bitfield) => bitfield.as_bytes(),
+            ContentType::Handshake(handshake) => handshake.as_bytes(),
         };
 
         [

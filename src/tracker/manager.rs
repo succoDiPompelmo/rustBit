@@ -36,7 +36,7 @@ pub fn thread_evo(
 
         for endpoint in endpoints {
             let mut peer = match connect(&endpoint) {
-                Ok(stream) => Peer::new(StreamInterface::Tcp(stream)),
+                Ok(stream) => Peer::new(StreamInterface::Tcp(stream), info_hash),
                 Err(err) => {
                     println!("Error during peer connection: {:?}", err);
                     continue;
