@@ -2,8 +2,6 @@ pub mod manager;
 pub mod tcp_tracker;
 pub mod udp_tracker;
 
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
 use std::fs::File;
 use std::io::prelude::*;
 use std::str;
@@ -11,6 +9,7 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
 
+use crate::common::generator::generate_peer_id;
 use crate::torrent::Torrent;
 use crate::tracker::manager::thread_evo;
 
@@ -40,19 +39,11 @@ fn read_file() -> Vec<u8> {
     contents
 }
 
-fn random_peer_id() -> String {
-    thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(20)
-        .map(char::from)
-        .collect()
-}
-
 impl Tracker {
     pub fn init_tracker(torrent: &mut Torrent) -> Result<Tracker, &'static str> {
         let info_hash = &torrent.get_info_hash();
         let tracker_list = str::from_utf8(read_file().as_slice()).unwrap().to_owned();
-        let peer_id = &random_peer_id();
+        let peer_id = &generate_peer_id();
         // let announce_list = torrent.get_announce_list();
 
         let trackers = [
@@ -71,7 +62,7 @@ impl Tracker {
 
         let thread_info_hash = info_hash.clone();
 
-        thread::spawn(move || thread_evo(rx, &random_peer_id(), &thread_info_hash));
+        thread::spawn(move || thread_evo(rx, &thread_info_hash));
 
         for tracker_name in trackers {
             let tracker_result = match &tracker_name[0..3] {

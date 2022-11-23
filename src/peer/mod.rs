@@ -3,7 +3,7 @@ pub mod stream;
 
 use std::collections::HashMap;
 
-use crate::messages::handshake::HandshakeMessage;
+use crate::common::generator::generate_peer_id;
 use crate::messages::{ContentType, Message};
 use crate::peer::stream::{
     read_stream, send_metadata_handshake_request, write_stream, StreamInterface,
@@ -11,6 +11,7 @@ use crate::peer::stream::{
 
 #[derive(Debug)]
 pub struct Peer {
+    id: String,
     choked: bool,
     active: bool,
     bitfield: Vec<bool>,
@@ -30,21 +31,24 @@ impl Peer {
             stream,
             active: false,
             info_hash: info_hash.to_vec(),
+            id: generate_peer_id(),
         }
-    }
-
-    pub fn handshake(&mut self, info_hash: &[u8], peer_id: &str) -> Result<(), &'static str> {
-        let handshake_request = HandshakeMessage::new(info_hash, peer_id);
-        write_stream(&mut self.stream, &handshake_request.as_bytes());
-
-        self.read_message()
-            .map_or((), |msg| self.apply_message(&msg));
-
-        Ok(())
     }
 
     pub fn is_choked(&self) -> bool {
         self.choked
+    }
+
+    pub fn get_info_hash(&self) -> Vec<u8> {
+        self.info_hash.to_vec()
+    }
+
+    pub fn is_active(&self) -> bool {
+        self.active
+    }
+
+    pub fn get_peer_id(&self) -> String {
+        self.id.to_owned()
     }
 
     #[cfg(test)]

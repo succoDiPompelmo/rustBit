@@ -84,7 +84,7 @@ impl Message {
             ContentType::Request(request) => request.as_bytes(),
             ContentType::Interested(interested) => interested.as_bytes(),
             ContentType::Bitfield(bitfield) => bitfield.as_bytes(),
-            ContentType::Handshake(handshake) => handshake.as_bytes(),
+            ContentType::Handshake(handshake) => return handshake.as_bytes(),
         };
 
         [
@@ -158,6 +158,11 @@ pub fn new_metadata(extension_id: u8, index: usize) -> Message {
         &vec![vec![(extension_id as u8)], data].concat(),
     ));
     Message::new(extension, length, 20)
+}
+
+pub fn new_handshake(info_hash: &[u8], peer_id: &str) -> Message {
+    let content = ContentType::Handshake(HandshakeMessage::new(info_hash, peer_id));
+    Message::new(content, 68, 19)
 }
 
 #[cfg(test)]

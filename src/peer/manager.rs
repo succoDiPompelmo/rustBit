@@ -1,7 +1,7 @@
 use std::cmp;
 use std::sync::{Arc, Mutex};
 
-use crate::messages::{new_interested, new_metadata, new_request, Message};
+use crate::messages::{new_handshake, new_interested, new_metadata, new_request, Message};
 use crate::peer::Peer;
 use crate::torrent::info::Info;
 use crate::torrent::writer::write_piece;
@@ -90,7 +90,6 @@ fn init_download(peer: &mut Peer) -> Result<(), &'static str> {
 }
 
 pub fn download_info(peer: &mut Peer) -> Result<Info, &'static str> {
-    init_download(peer)?;
     let mut manager = PeerManager::new(
         (0..peer.get_metadata_size()).step_by(INFO_PIECE_SIZE).len(),
         false,
@@ -112,22 +111,26 @@ pub fn download_info(peer: &mut Peer) -> Result<Info, &'static str> {
     Err("No info retrieved")
 }
 
-fn download_piece(peer: &mut Peer, info: &Info, piece_idx: usize) -> Result<Vec<u8>, &'static str> {
-    let mut manager =
-        PeerManager::new((0..info.get_piece_length()).step_by(BLOCK_SIZE).len(), true);
+fn download_piece(
+    peer: &mut Peer,
+    piece_length: usize,
+    piece_idx: usize,
+    total_length: usize,
+) -> Result<Vec<u8>, &'static str> {
+    let mut manager = PeerManager::new((0..piece_length).step_by(BLOCK_SIZE).len(), true);
 
     loop {
         if let Some(piece) = manager.try_assemble(peer) {
             return Ok(piece);
         }
 
+        if peer.is_choked() {
+            panic!("Chocked peer")
+        }
+
         if manager.is_ready() {
             let block_offset = manager.get_offset(BLOCK_SIZE);
-            let block_size = get_block_size(
-                block_offset,
-                info.get_total_length(),
-                piece_idx * info.get_piece_length(),
-            );
+            let block_size = get_block_size(block_offset, total_length, piece_idx * piece_length);
 
             peer.send_message(new_request(
                 piece_idx as u32,
@@ -139,10 +142,41 @@ fn download_piece(peer: &mut Peer, info: &Info, piece_idx: usize) -> Result<Vec<
     }
 }
 
-pub fn peer_thread(peer: &mut Peer, info: &Info, lock_counter: Arc<Mutex<usize>>) {
-    let mut piece_idx = 0;
+pub fn peer_thread_evp(
+    peer: &mut Peer,
+    info_arc: Arc<Mutex<Option<Info>>>,
+    lock_counter: Arc<Mutex<usize>>,
+) {
+    peer.send_message(new_handshake(&peer.get_info_hash(), &peer.get_peer_id()));
+    peer.read_message()
+        .map_or((), |msg| peer.apply_message(&msg));
+
+    if !peer.is_active() {
+        panic!("Handshake failed")
+    }
+    println!("HANDSHA KE COMPLETED");
 
     init_download(peer).unwrap();
+
+    let mut piece_length = 0;
+    let mut total_length = 0;
+
+    match info_arc.lock() {
+        Ok(mut mutex_info) => {
+            if let Some(info) = &mut *mutex_info {
+                piece_length = info.get_piece_length();
+                total_length = info.get_total_length();
+            } else {
+                *mutex_info = Some(download_info(peer).unwrap())
+            }
+        }
+        _ => (),
+    }
+
+    println!("piece length: {:?}", piece_length);
+    println!("total length: {:?}", total_length);
+
+    let mut piece_idx = 0;
 
     loop {
         if let Ok(mut counter) = lock_counter.lock() {
@@ -150,19 +184,25 @@ pub fn peer_thread(peer: &mut Peer, info: &Info, lock_counter: Arc<Mutex<usize>>
             *counter += 1;
         }
 
-        // Check if it's the last piece and conclude gracefully the download.
-
         println!("{:?} by peer", piece_idx);
-        let piece = download_piece(peer, info, piece_idx).unwrap();
-        if info.verify_piece(&piece, piece_idx) {
-            write_piece(
-                piece,
-                piece_idx,
-                info.get_piece_length(),
-                info.get_files().unwrap(),
-            )
-        } else {
-            panic!();
+        let piece = download_piece(peer, piece_length, piece_idx, total_length).unwrap();
+
+        match info_arc.lock() {
+            Ok(mut mutex_info) => {
+                if let Some(info) = &mut *mutex_info {
+                    if info.verify_piece(&piece, piece_idx) {
+                        write_piece(
+                            piece,
+                            piece_idx,
+                            info.get_piece_length(),
+                            info.get_files().unwrap(),
+                        )
+                    } else {
+                        panic!();
+                    }
+                }
+            }
+            _ => println!("Error during lock acquisition to write piece"),
         }
     }
 }
