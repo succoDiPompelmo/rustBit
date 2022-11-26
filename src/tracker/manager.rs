@@ -6,7 +6,7 @@ use std::net::SocketAddr;
 use std::net::TcpStream;
 use std::time::Duration;
 
-use crate::peer::manager::peer_thread_evp;
+use crate::peer::manager::peer_thread;
 use crate::peer::stream::StreamInterface;
 use crate::peer::Peer;
 use crate::torrent::info::Info;
@@ -23,6 +23,8 @@ pub fn thread_evo(
     let info_mutex: Arc<Mutex<Option<Info>>> = Arc::new(Mutex::new(None));
 
     loop {
+        // Once implemented the thread pool here we could put everythin in parallel in this for loop.
+        // The thread pool will be responsible for executing with the right resources the tasks.
         let endpoints: Vec<String> = peers_info_receiver
             .recv()
             .unwrap()
@@ -34,19 +36,18 @@ pub fn thread_evo(
         println!("{:?}", endpoints);
 
         for endpoint in endpoints {
-            match connect(&endpoint) {
-                Ok(stream) => {
-                    let mut peer = Peer::new(StreamInterface::Tcp(stream), info_hash);
-                    let info_mutex_clone = info_mutex.clone();
-                    let counter_clone = piece_counter.clone();
-                    handles.push(thread::spawn(move || {
-                        peer_thread_evp(&mut peer, info_mutex_clone, counter_clone)
-                    }));
-                }
-                Err(err) => {
-                    println!("Error during peer connection: {:?}", err);
-                }
-            };
+            if let Ok(stream) = connect(&endpoint) {
+                let mut peer = Peer::new(StreamInterface::Tcp(stream), info_hash);
+
+                let info_mutex_clone = info_mutex.clone();
+                let counter_clone = piece_counter.clone();
+
+                handles.push(thread::spawn(move || {
+                    peer_thread(&mut peer, info_mutex_clone, counter_clone)
+                }));
+            } else {
+                println!("Error during peer connection");
+            }
         }
     }
 }

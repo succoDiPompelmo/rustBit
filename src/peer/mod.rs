@@ -1,3 +1,4 @@
+pub mod buffer;
 pub mod manager;
 pub mod stream;
 
@@ -45,6 +46,10 @@ impl Peer {
 
     pub fn is_active(&self) -> bool {
         self.active
+    }
+
+    pub fn is_ready(&self) -> bool {
+        self.metadata_size != 0 && !self.choked
     }
 
     pub fn get_peer_id(&self) -> String {
