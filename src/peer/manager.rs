@@ -1,85 +1,11 @@
-use std::cmp;
 use std::sync::{Arc, Mutex};
 
-use crate::messages::{new_handshake, new_interested, new_metadata, new_request, Message};
-use crate::peer::buffer::MessageBuffer;
+use crate::messages::{new_handshake, new_interested};
 use crate::peer::Peer;
 use crate::torrent::info::Info;
 use crate::torrent::writer::write_piece;
 
-const BLOCK_SIZE: usize = 16384;
-const INFO_PIECE_SIZE: usize = 16384;
-
-fn get_block_size(block_offset: usize, torrent_length: usize, piece_offset: usize) -> usize {
-    cmp::min(torrent_length - (block_offset + piece_offset), BLOCK_SIZE)
-}
-
-pub fn download_info(peer: &mut Peer) -> Result<Vec<u8>, &'static str> {
-    let next_info_piece = |peer: &mut Peer, piece_index| {
-        let metadata_id = peer.get_extension_id_by_name("ut_metadata");
-        peer.send_message(new_metadata(metadata_id, piece_index));
-    };
-
-    let mut buffer = MessageBuffer::new(
-        Message::is_extension_data_message,
-        next_info_piece,
-        (0..peer.get_metadata_size()).step_by(INFO_PIECE_SIZE).len(),
-    );
-
-    for _ in 0..10 {
-        peer.read_message().map_or((), |msg| {
-            peer.apply_message(&msg);
-            buffer.push_message(msg);
-        });
-
-        if buffer.is_full() {
-            return Ok(buffer.assemble_content());
-        };
-
-        buffer.request_next_message(peer);
-    }
-    Err("No info retrieved")
-}
-
-fn download_piece(
-    peer: &mut Peer,
-    piece_length: usize,
-    piece_index: usize,
-    total_length: usize,
-) -> Result<Vec<u8>, &'static str> {
-    let next_piece_block = |peer: &mut Peer, block_index: usize| {
-        let block_offset = block_index * BLOCK_SIZE;
-        let block_length = get_block_size(block_offset, total_length, piece_index * piece_length);
-        peer.send_message(new_request(
-            piece_index as u32,
-            block_offset as u32,
-            block_length as u32,
-        ));
-    };
-
-    let mut buffer = MessageBuffer::new(
-        Message::is_request_message,
-        next_piece_block,
-        (0..peer.get_metadata_size()).step_by(INFO_PIECE_SIZE).len(),
-    );
-
-    loop {
-        peer.read_message().map_or((), |msg| {
-            peer.apply_message(&msg);
-            buffer.push_message(msg);
-        });
-
-        if buffer.is_full() {
-            return Ok(buffer.assemble_content());
-        };
-
-        if peer.is_choked() {
-            panic!("Chocked peer")
-        }
-
-        buffer.request_next_message(peer);
-    }
-}
+use super::download::{download, Downloadable};
 
 fn starup_peer(peer: &mut Peer) {
     peer.send_message(new_handshake(&peer.get_info_hash(), &peer.get_peer_id()));
@@ -105,25 +31,18 @@ fn starup_peer(peer: &mut Peer) {
 }
 
 fn prepare_info(peer: &mut Peer, info_arc: &Arc<Mutex<Option<Info>>>) -> (usize, usize) {
-    let mut piece_length = 0;
-    let mut total_length = 0;
-
-    match info_arc.lock() {
-        Ok(mut mutex_info) => {
-            if let Some(info) = &mut *mutex_info {
-                piece_length = info.get_piece_length();
-                total_length = info.get_total_length();
-            } else {
-                let info_bytes = download_info(peer).unwrap();
-                let info = Info::from_bytes(info_bytes).unwrap();
-                piece_length = info.get_piece_length();
-                total_length = info.get_total_length();
-                *mutex_info = Some(info);
-            }
-            return (piece_length, total_length);
+    if let Ok(mut mutex_info) = info_arc.lock() {
+        if (*mutex_info).is_none() {
+            let info_bytes = download(peer, Downloadable::Info).unwrap();
+            let info = Info::from_bytes(info_bytes).unwrap();
+            *mutex_info = Some(info);
         }
-        _ => panic!("Error during info lock"),
+
+        let info = mutex_info.as_ref().unwrap();
+        return (info.get_piece_length(), info.get_total_length());
     }
+
+    panic!("Error during info lock")
 }
 
 pub fn peer_thread(
@@ -143,7 +62,11 @@ pub fn peer_thread(
         }
 
         println!("{:?} by peer", piece_idx);
-        let piece = download_piece(peer, piece_length, piece_idx, total_length).unwrap();
+        let piece = download(
+            peer,
+            Downloadable::Block((piece_length, piece_idx, total_length)),
+        )
+        .unwrap();
 
         match info_arc.lock() {
             Ok(mut mutex_info) => {

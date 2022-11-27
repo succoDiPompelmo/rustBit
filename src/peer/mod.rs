@@ -1,4 +1,5 @@
 pub mod buffer;
+pub mod download;
 pub mod manager;
 pub mod stream;
 
