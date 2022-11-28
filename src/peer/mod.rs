@@ -127,6 +127,16 @@ impl Peer {
     pub fn send_metadata_handshake_request(&mut self) {
         send_metadata_handshake_request(&mut self.stream)
     }
+
+    #[cfg(test)]
+    pub fn set_metadata_size(&mut self, metadata_size: usize) {
+        self.metadata_size = metadata_size;
+    }
+
+    #[cfg(test)]
+    pub fn add_extension(&mut self, extension_key: String, extension_value: u8) {
+        self.extensions.insert(extension_key, extension_value);
+    }
 }
 
 #[cfg(test)]
