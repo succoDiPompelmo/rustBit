@@ -68,6 +68,9 @@ impl Info {
     }
 
     pub fn get_piece(&self, index: usize) -> &[u8] {
+
+        println!("{:?}", self.pieces);
+
         self.pieces
             .chunks_exact(20)
             .nth(index)

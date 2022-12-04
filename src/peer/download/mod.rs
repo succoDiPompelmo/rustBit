@@ -4,8 +4,8 @@ pub mod info;
 use crate::peer::buffer::MessageBuffer;
 use crate::peer::Peer;
 
-const BLOCK_SIZE: usize = 16384;
-const INFO_PIECE_SIZE: usize = 16384;
+pub const BLOCK_SIZE: usize = 16384;
+pub const INFO_PIECE_SIZE: usize = 16384;
 
 pub enum Downloadable {
     Info,

@@ -57,16 +57,17 @@ pub fn peer_thread(
 
     loop {
         if let Ok(mut counter) = lock_counter.lock() {
-            piece_idx = *counter + 1;
+            piece_idx = *counter;
             *counter += 1;
         }
 
-        println!("{:?} by peer", piece_idx);
         let piece = download(
             peer,
             Downloadable::Block((piece_length, piece_idx, total_length)),
         )
         .unwrap();
+
+        println!("{:?}", piece);
 
         match info_arc.lock() {
             Ok(mut mutex_info) => {
@@ -79,7 +80,7 @@ pub fn peer_thread(
                             info.get_files().unwrap(),
                         )
                     } else {
-                        panic!();
+                        panic!("Error during piece verification");
                     }
                 }
             }
@@ -90,3 +91,44 @@ pub fn peer_thread(
         }
     }
 }
+
+// #[cfg(test)]
+// mod test {
+//     use crate::{peer::{stream::StreamInterface, download}, common::mock_stream::MockStream};
+
+//     use super::*;
+
+//     #[test]
+//     fn test_peer_thread() {
+
+//         let piece_counter = Arc::new(Mutex::new(0));
+//         let info_mutex: Arc<Mutex<Option<Info>>> = Arc::new(Mutex::new(None));
+
+//         let info_hash = "aaaaaaaaaaaaaaaaaaaa".as_bytes();
+//         let peer_id = "bbbbbbbbbbbbbbbbbbbb";
+
+//         let mut s = MockStream::new();
+
+//         // HANDSHAKE
+//         s.push_bytes_to_read(&new_handshake(info_hash, peer_id).as_bytes());
+
+//         // UNCHOKE MESSAGE
+//         s.push_bytes_to_read([0, 0, 0, 1, 1].as_slice());
+//         // EXTENSION DATA MESSAGE
+//         let dictionary = "d8:msg_typei1ee".as_bytes().to_vec();
+//         let info = "d6:pieces20:aaaaaaaaaaaaaaaaaaaa12:piece lengthi12e4:name1:B6:lengthi12ee".as_bytes().to_vec();
+//         let message = [vec![0, 0, 0, 90, 20, 2], dictionary, info].concat();
+//         s.push_bytes_to_read(&message);
+    
+//         // PIECE MESSAGE
+//         s.push_bytes_to_read([0, 0, 0, 11, 6, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2].as_slice());
+
+//         let e = StreamInterface::Mocked(s.clone());
+//         let mut peer = Peer::new(e, info_hash);
+
+//         peer.set_metadata_size(download::INFO_PIECE_SIZE);
+//         peer.add_extension("ut_metadata".to_owned(), 1);
+
+//         peer_thread(&mut peer, info_mutex, piece_counter);
+//     }
+// }
