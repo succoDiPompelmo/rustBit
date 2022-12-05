@@ -67,8 +67,6 @@ pub fn peer_thread(
         )
         .unwrap();
 
-        println!("{:?}", piece);
-
         match info_arc.lock() {
             Ok(mut mutex_info) => {
                 if let Some(info) = &mut *mutex_info {

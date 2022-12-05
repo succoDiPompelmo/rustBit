@@ -6,6 +6,7 @@ use std::net::SocketAddr;
 use std::net::TcpStream;
 use std::time::Duration;
 
+use crate::common::thread_pool::{ThreadPool};
 use crate::peer::manager::peer_thread;
 use crate::peer::stream::StreamInterface;
 use crate::peer::Peer;
@@ -18,7 +19,6 @@ pub fn thread_evo(
     peers_info_receiver: Receiver<Vec<PeerConnectionInfo>>,
     info_hash: &[u8],
 ) -> Result<(), &'static str> {
-    let mut handles = vec![];
     let piece_counter = Arc::new(Mutex::new(0));
     let info_mutex: Arc<Mutex<Option<Info>>> = Arc::new(Mutex::new(None));
 
@@ -35,6 +35,8 @@ pub fn thread_evo(
 
         println!("{:?}", endpoints);
 
+        let peer_pool = ThreadPool::new(5);
+
         for endpoint in endpoints {
             if let Ok(stream) = connect(&endpoint) {
                 let mut peer = Peer::new(StreamInterface::Tcp(stream), info_hash);
@@ -42,9 +44,9 @@ pub fn thread_evo(
                 let info_mutex_clone = info_mutex.clone();
                 let counter_clone = piece_counter.clone();
 
-                handles.push(thread::spawn(move || {
+                peer_pool.execute(move || {
                     peer_thread(&mut peer, info_mutex_clone, counter_clone)
-                }));
+                });
             } else {
                 println!("Error during peer connection");
             }
