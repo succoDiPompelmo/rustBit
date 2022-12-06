@@ -34,7 +34,7 @@ impl Info {
     }
 
     pub fn from_bytes(bytes: Vec<u8>) -> Result<Info, &'static str> {
-        let decoded_info = Decoder::init(bytes).decode();
+        let decoded_info = Decoder::init(bytes).decode()?;
         Info::from_metainfo(&decoded_info)
     }
 

@@ -39,10 +39,13 @@ fn execute<F>(peer: &mut Peer, mut buffer: MessageBuffer<F>) -> Result<Vec<u8>, 
 where
     F: FnMut(&mut Peer, usize),
 {
+    let mut idle_count = 0;
+
     loop {
         peer.read_message().map_or((), |msg| {
             peer.apply_message(&msg);
             buffer.push_message(msg);
+            idle_count = 0;
         });
 
         if buffer.is_full() {
@@ -50,22 +53,27 @@ where
         };
 
         if peer.is_choked() {
-            panic!("Chocked peer")
+            return Err("Chocked peer");
         }
 
         buffer.request_next_message(peer);
+
+        idle_count += 1;
+
+        if idle_count > 10 {
+            return Err("Peer thread killed for being idle fot too long");
+        }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::{peer::stream::StreamInterface, common::mock_stream::MockStream};
+    use crate::{common::mock_stream::MockStream, peer::stream::StreamInterface};
 
     use super::*;
 
     #[test]
     fn test_download_info() {
-
         let mut s = MockStream::new();
         // UNCHOKE MESSAGE
         s.push_bytes_to_read([0, 0, 0, 1, 1].as_slice());
@@ -73,7 +81,7 @@ mod test {
         let dictionary = "d8:msg_typei1ee".as_bytes().to_vec();
         let message = [vec![0, 0, 0, 22, 20, 2], dictionary, vec![1, 2, 3, 4, 5]].concat();
         s.push_bytes_to_read(&message);
-    
+
         let e = StreamInterface::Mocked(s.clone());
 
         let mut peer = Peer::new(e, &[]);
@@ -87,14 +95,13 @@ mod test {
 
     #[test]
     fn test_download_piece() {
-
         let mut s = MockStream::new();
         // UNCHOKE MESSAGE
         s.push_bytes_to_read([0, 0, 0, 1, 1].as_slice());
         // PIECE MESSAGE
         let message = vec![0, 0, 0, 14, 6, 0, 0, 0, 0, 0, 0, 0, 0, 5, 4, 3, 2, 1];
         s.push_bytes_to_read(&message);
-    
+
         let e = StreamInterface::Mocked(s.clone());
 
         let mut peer = Peer::new(e, &[]);

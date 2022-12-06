@@ -91,7 +91,7 @@ mod test {
     #[test]
     fn from_metainfo_single_file() {
         let torrent_bytes = read_test_data("src/torrent/test_data/fake_debian.torrent");
-        let torrent_metainfo = Decoder::init(torrent_bytes).decode();
+        let torrent_metainfo = Decoder::init(torrent_bytes).decode().unwrap();
         let torrents_result = Torrent::from_metainfo(&torrent_metainfo);
 
         let pieces = vec![
@@ -126,7 +126,7 @@ mod test {
     #[test]
     fn from_metainfo_multiple_file() {
         let torrent_bytes = read_test_data("src/torrent/test_data/fake_prey.torrent");
-        let torrent_metainfo = Decoder::init(torrent_bytes).decode();
+        let torrent_metainfo = Decoder::init(torrent_bytes).decode().unwrap();
         let torrents_result = Torrent::from_metainfo(&torrent_metainfo);
 
         let pieces = vec![

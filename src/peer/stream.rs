@@ -74,6 +74,10 @@ fn peek_and_read(stream: &mut StreamInterface, body: &mut [u8], length: usize) -
 }
 
 pub fn read_stream(stream: &mut StreamInterface) -> Option<(Vec<u8>, u8, u32)> {
+    stream
+        .set_read_timeout(Some(Duration::from_millis(100)))
+        .unwrap();
+
     if !has_messages(stream) {
         return None;
     }
@@ -115,13 +119,10 @@ pub fn read_stream(stream: &mut StreamInterface) -> Option<(Vec<u8>, u8, u32)> {
 }
 
 pub fn write_stream(stream: &mut StreamInterface, buffer: &[u8]) {
-    stream
-        .write_all(buffer)
-        .map_err(|err| {
-            println!("Error {:?} in writing buffer {:?}", err, buffer);
-            "Error in writing to stream"
-        })
-        .unwrap();
+    match stream.write_all(buffer) {
+        Ok(_) => (),
+        Err(err) => println!("Error {:?} in writing buffer {:?}", err, buffer),
+    }
 }
 
 pub fn send_metadata_handshake_request(stream: &mut StreamInterface) {

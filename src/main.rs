@@ -30,7 +30,7 @@ async fn add_magnet(torrent_source: String) -> HttpResponse {
 
     let mut torrent = if torrent_source.ends_with(".torrent") {
         let contents = read_file();
-        let decoded_data = bencode::decode::Decoder::init(contents).decode();
+        let decoded_data = bencode::decode::Decoder::init(contents).decode().unwrap();
         Torrent::from_metainfo(&decoded_data).unwrap()
     } else {
         let magnet = magnet::parse_magnet(torrent_source.as_bytes().to_vec()).unwrap();

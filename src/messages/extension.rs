@@ -29,7 +29,7 @@ impl ExtensionMessage {
 
     pub fn from_bytes(bytes: &[u8]) -> ExtensionMessage {
         let mut decoder = Decoder::init(bytes[1..].to_vec());
-        let content = decoder.decode();
+        let content = decoder.decode().unwrap();
 
         let mut extensions = HashMap::new();
         if let Ok(extensions_metainfo) = metainfo::get_value_from_dict(&content, "m") {

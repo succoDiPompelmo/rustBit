@@ -85,7 +85,7 @@ impl Peer {
                 self.apply_content(message);
             }
             5 => {
-                println!("INTERESTED MESSAGE");
+                println!("BITFIELD MESSAGE");
                 self.apply_content(message)
             }
             19 => {

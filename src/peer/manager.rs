@@ -7,52 +7,60 @@ use crate::torrent::writer::write_piece;
 
 use super::download::{download, Downloadable};
 
-fn starup_peer(peer: &mut Peer) {
+fn starup_peer(peer: &mut Peer) -> Result<(), &'static str> {
     peer.send_message(new_handshake(&peer.get_info_hash(), &peer.get_peer_id()));
     peer.read_message()
         .map_or((), |msg| peer.apply_message(&msg));
 
     if !peer.is_active() {
-        panic!("Handshake failed")
+        return Err("Handshake failed");
     }
 
     peer.send_message(new_interested());
     peer.send_metadata_handshake_request();
 
-    for _ in 0..100 {
+    for _ in 0..10 {
         peer.read_message()
             .map_or((), |msg| peer.apply_message(&msg));
 
         if peer.is_ready() {
-            return;
+            return Ok(());
         }
     }
-    panic!("Peer not ready");
+    Err("Peer not ready")
 }
 
-fn prepare_info(peer: &mut Peer, info_arc: &Arc<Mutex<Option<Info>>>) -> (usize, usize) {
-    if let Ok(mut mutex_info) = info_arc.lock() {
-        if (*mutex_info).is_none() {
-            let info_bytes = download(peer, Downloadable::Info).unwrap();
-            let info = Info::from_bytes(info_bytes).unwrap();
-            *mutex_info = Some(info);
+fn prepare_info(
+    peer: &mut Peer,
+    info_arc: &Arc<Mutex<Option<Info>>>,
+) -> Result<(usize, usize), &'static str> {
+    if let Ok(mutex_info) = info_arc.lock() {
+        if (*mutex_info).is_some() {
+            let info = mutex_info.as_ref().unwrap();
+            return Ok((info.get_piece_length(), info.get_total_length()));
         }
-
-        let info = mutex_info.as_ref().unwrap();
-        return (info.get_piece_length(), info.get_total_length());
     }
 
-    panic!("Error during info lock")
+    let info_bytes = download(peer, Downloadable::Info)?;
+    let info = Info::from_bytes(info_bytes)?;
+
+    if let Ok(mut mutex_info) = info_arc.lock() {
+        let result = (info.get_piece_length(), info.get_total_length());
+        *mutex_info = Some(info);
+        Ok(result)
+    } else {
+        Err("Error during info lock")
+    }
 }
 
 pub fn peer_thread(
     peer: &mut Peer,
     info_arc: Arc<Mutex<Option<Info>>>,
     lock_counter: Arc<Mutex<usize>>,
-) {
-    starup_peer(peer);
+) -> Result<(), &'static str> {
+    starup_peer(peer)?;
 
-    let (piece_length, total_length) = prepare_info(peer, &info_arc);
+    let (piece_length, total_length) = prepare_info(peer, &info_arc)?;
     let mut piece_idx = 0;
 
     loop {
@@ -64,8 +72,7 @@ pub fn peer_thread(
         let piece = download(
             peer,
             Downloadable::Block((piece_length, piece_idx, total_length)),
-        )
-        .unwrap();
+        )?;
 
         match info_arc.lock() {
             Ok(mut mutex_info) => {
@@ -78,13 +85,13 @@ pub fn peer_thread(
                             info.get_files().unwrap(),
                         )
                     } else {
-                        panic!("Error during piece verification");
+                        return Err("Error during piece verification");
                     }
                 }
             }
             Err(err) => {
                 println!("Error during lock acquisition to write piece: {:?}", err);
-                panic!("Error during lock acquisition")
+                return Err("Error during lock acquisition");
             }
         }
     }
@@ -117,7 +124,7 @@ pub fn peer_thread(
 //         let info = "d6:pieces20:aaaaaaaaaaaaaaaaaaaa12:piece lengthi12e4:name1:B6:lengthi12ee".as_bytes().to_vec();
 //         let message = [vec![0, 0, 0, 90, 20, 2], dictionary, info].concat();
 //         s.push_bytes_to_read(&message);
-    
+
 //         // PIECE MESSAGE
 //         s.push_bytes_to_read([0, 0, 0, 11, 6, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2].as_slice());
 

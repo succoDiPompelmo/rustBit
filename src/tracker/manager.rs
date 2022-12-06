@@ -1,12 +1,11 @@
 use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Mutex};
-use std::thread;
 
 use std::net::SocketAddr;
 use std::net::TcpStream;
 use std::time::Duration;
 
-use crate::common::thread_pool::{ThreadPool};
+use crate::common::thread_pool::ThreadPool;
 use crate::peer::manager::peer_thread;
 use crate::peer::stream::StreamInterface;
 use crate::peer::Peer;
@@ -21,6 +20,7 @@ pub fn thread_evo(
 ) -> Result<(), &'static str> {
     let piece_counter = Arc::new(Mutex::new(0));
     let info_mutex: Arc<Mutex<Option<Info>>> = Arc::new(Mutex::new(None));
+    let peer_pool = ThreadPool::new(1);
 
     loop {
         // Once implemented the thread pool here we could put everythin in parallel in this for loop.
@@ -35,8 +35,6 @@ pub fn thread_evo(
 
         println!("{:?}", endpoints);
 
-        let peer_pool = ThreadPool::new(5);
-
         for endpoint in endpoints {
             if let Ok(stream) = connect(&endpoint) {
                 let mut peer = Peer::new(StreamInterface::Tcp(stream), info_hash);
@@ -44,9 +42,7 @@ pub fn thread_evo(
                 let info_mutex_clone = info_mutex.clone();
                 let counter_clone = piece_counter.clone();
 
-                peer_pool.execute(move || {
-                    peer_thread(&mut peer, info_mutex_clone, counter_clone)
-                });
+                peer_pool.execute(move || peer_thread(&mut peer, info_mutex_clone, counter_clone));
             } else {
                 println!("Error during peer connection");
             }
@@ -56,6 +52,6 @@ pub fn thread_evo(
 
 fn connect(endpoint: &str) -> Result<TcpStream, &'static str> {
     let server: SocketAddr = endpoint.parse().expect("Unable to parse socket address");
-    let connect_timeout = Duration::from_secs(3);
+    let connect_timeout = Duration::from_secs(1);
     TcpStream::connect_timeout(&server, connect_timeout).map_err(|_| "Error")
 }

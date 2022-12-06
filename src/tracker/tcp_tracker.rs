@@ -18,7 +18,7 @@ pub fn get_tracker(
     );
 
     let result = get_peers(tracker_url)?;
-    let tracker_metainfo = Decoder::init(result).decode();
+    let tracker_metainfo = Decoder::init(result).decode()?;
     let tracker = from_metainfo(tracker_metainfo)?;
 
     Ok(tracker)
