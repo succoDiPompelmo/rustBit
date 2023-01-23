@@ -1,17 +1,12 @@
-pub mod manager;
 pub mod tcp_tracker;
 pub mod udp_tracker;
 
 use std::fs::File;
 use std::io::prelude::*;
 use std::str;
-use std::sync::mpsc;
-use std::sync::mpsc::{Receiver, Sender};
-use std::thread;
+use std::sync::mpsc::Sender;
 
 use crate::common::generator::generate_peer_id;
-use crate::torrent::Torrent;
-use crate::tracker::manager::thread_evo;
 
 #[derive(Debug)]
 pub struct Tracker {
@@ -40,47 +35,27 @@ fn read_file() -> Vec<u8> {
 }
 
 impl Tracker {
-    pub fn init_tracker(torrent: &mut Torrent) -> Result<Tracker, &'static str> {
-        let info_hash = &torrent.get_info_hash();
-        let tracker_list = str::from_utf8(read_file().as_slice()).unwrap().to_owned();
+    pub fn find_peers(info_hash: &[u8], peer_info_sender: Sender<Vec<PeerConnectionInfo>>) {
         let peer_id = &generate_peer_id();
-        // let announce_list = torrent.get_announce_list();
+        let trackers_hostname = find_trackers();
 
-        let trackers = [
-            // announce_list,
-            tracker_list
-                .split('\n')
-                .map(|el| el.to_owned())
-                .collect::<Vec<String>>(),
-        ]
-        .concat();
-
-        let (tx, rx): (
-            Sender<Vec<PeerConnectionInfo>>,
-            Receiver<Vec<PeerConnectionInfo>>,
-        ) = mpsc::channel();
-
-        let thread_info_hash = info_hash.clone();
-
-        thread::spawn(move || thread_evo(rx, &thread_info_hash));
-
-        for tracker_name in trackers {
-            let tracker_result = match &tracker_name[0..3] {
-                "htt" => tcp_tracker::get_tracker(info_hash, peer_id, &tracker_name),
-                "udp" => udp_tracker::get_tracker(info_hash, peer_id, &tracker_name),
-                _ => return Err("Protocol not supported"),
+        for tracker_hostname in trackers_hostname {
+            let tracker = match &tracker_hostname[0..3] {
+                "htt" => tcp_tracker::get_tracker(info_hash, peer_id, &tracker_hostname),
+                "udp" => udp_tracker::get_tracker(info_hash, peer_id, &tracker_hostname),
+                _ => Err("Protocol not supported"),
             };
 
-            if let Ok(tracker) = tracker_result {
+            if let Ok(tracker) = tracker {
                 println!("Found {:?} peers", tracker.peers.len());
-                let peers = tracker.get_peers_info();
-                tx.send(peers.to_vec()).unwrap();
+                peer_info_sender
+                    .send(tracker.get_peers_info().to_vec())
+                    .unwrap();
             }
         }
-        Err("No tracker found")
     }
 
-    fn get_peers_info(&self) -> &Vec<PeerConnectionInfo> {
+    pub fn get_peers_info(&self) -> &Vec<PeerConnectionInfo> {
         &self.peers
     }
 
@@ -99,6 +74,14 @@ impl Tracker {
 
         peers_info
     }
+}
+
+fn find_trackers() -> Vec<String> {
+    let tracker_list = str::from_utf8(read_file().as_slice()).unwrap().to_owned();
+    tracker_list
+        .split('\n')
+        .map(|tracker| tracker.to_owned())
+        .collect::<Vec<String>>()
 }
 
 mod test {}

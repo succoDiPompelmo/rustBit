@@ -1,4 +1,5 @@
 mod bencode;
+mod bridge;
 mod common;
 mod integration_test;
 mod messages;
@@ -11,8 +12,8 @@ use std::io::prelude::*;
 use std::thread;
 
 use crate::torrent::magnet;
+use crate::torrent::manager::TorrentManager;
 use crate::torrent::Torrent;
-use crate::tracker::Tracker;
 
 fn read_file() -> Vec<u8> {
     let mut file = File::open("torrent_files/HouseOfDragons.torrent").unwrap();
@@ -37,7 +38,7 @@ async fn add_magnet(torrent_source: String) -> HttpResponse {
         Torrent::from_info_hash(&magnet).unwrap()
     };
 
-    thread::spawn(move || Tracker::init_tracker(&mut torrent));
+    thread::spawn(move || TorrentManager::init(&mut torrent));
     HttpResponse::Ok().body("Torrent registered")
 }
 

@@ -53,14 +53,19 @@ fn prepare_info(
     }
 }
 
+pub fn get_info(peer: &mut Peer) -> Result<Info, &'static str> {
+    starup_peer(peer)?;
+    let info_bytes = download(peer, Downloadable::Info)?;
+    return Info::from_bytes(info_bytes)
+}
+
 pub fn peer_thread(
     peer: &mut Peer,
-    info_arc: Arc<Mutex<Option<Info>>>,
+    info: Info,
     lock_counter: Arc<Mutex<usize>>,
 ) -> Result<(), &'static str> {
     starup_peer(peer)?;
 
-    let (piece_length, total_length) = prepare_info(peer, &info_arc)?;
     let mut piece_idx = 0;
 
     loop {
@@ -71,28 +76,18 @@ pub fn peer_thread(
 
         let piece = download(
             peer,
-            Downloadable::Block((piece_length, piece_idx, total_length)),
+            Downloadable::Block((info.get_piece_length(), piece_idx, info.get_total_length())),
         )?;
 
-        match info_arc.lock() {
-            Ok(mut mutex_info) => {
-                if let Some(info) = &mut *mutex_info {
-                    if info.verify_piece(&piece, piece_idx) {
-                        write_piece(
-                            piece,
-                            piece_idx,
-                            info.get_piece_length(),
-                            info.get_files().unwrap(),
-                        )
-                    } else {
-                        return Err("Error during piece verification");
-                    }
-                }
-            }
-            Err(err) => {
-                println!("Error during lock acquisition to write piece: {:?}", err);
-                return Err("Error during lock acquisition");
-            }
+        if info.verify_piece(&piece, piece_idx) {
+            write_piece(
+                piece,
+                piece_idx,
+                info.get_piece_length(),
+                info.get_files().unwrap(),
+            )
+        } else {
+            return Err("Error during piece verification");
         }
     }
 }

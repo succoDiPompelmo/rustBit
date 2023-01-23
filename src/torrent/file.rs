@@ -1,7 +1,9 @@
+use serde::{Deserialize, Serialize};
+
 use crate::bencode::encode::{encode_dict_entry, Encode};
 use crate::bencode::metainfo;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct File {
     path: Vec<String>,
     length: usize,

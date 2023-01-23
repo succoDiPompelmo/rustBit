@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
 
 use crate::bencode::decode::Decoder;
@@ -6,7 +7,7 @@ use crate::bencode::metainfo;
 use crate::bencode::metainfo::Metainfo;
 use crate::torrent::file::File;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Info {
     files: Option<Vec<File>>,
     length: Option<usize>,

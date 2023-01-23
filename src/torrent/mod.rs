@@ -1,6 +1,7 @@
 pub mod file;
 pub mod info;
 pub mod magnet;
+pub mod manager;
 pub mod writer;
 
 use crate::bencode::metainfo;
