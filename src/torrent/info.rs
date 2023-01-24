@@ -108,7 +108,7 @@ impl Info {
 impl Encode for Info {
     fn encode(&self) -> Vec<u8> {
         let files = encode_dict_entry("files", &self.files);
-        let length = encode_dict_entry("files", &self.length);
+        let length = encode_dict_entry("length", &self.length);
         let name = encode_dict_entry("name", &self.name);
         let piece_length = encode_dict_entry("piece length", &self.piece_length);
         let pieces = encode_dict_entry("pieces", &self.pieces);
@@ -132,7 +132,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn encode_info() {
+    fn encode_info_with_files() {
         let file = File::new(vec!["/bin".to_owned()], 234);
 
         let info = Info {
@@ -144,6 +144,22 @@ mod test {
         };
 
         let expected_hash = "d5:filesld6:lengthi234e4:pathl4:/bineee4:name5:pippo12:piece lengthi43921e6:pieces5:ABCDEe";
+        let result_hash = info.encode();
+
+        assert_eq!(expected_hash.as_bytes().to_vec(), result_hash);
+    }
+
+    #[test]
+    fn encode_info_without_files() {
+        let info = Info {
+            name: "pippo".to_owned(),
+            piece_length: 43921,
+            pieces: "ABCDE".as_bytes().to_vec(),
+            files: None,
+            length: Some(476),
+        };
+
+        let expected_hash = "d6:lengthi476e4:name5:pippo12:piece lengthi43921e6:pieces5:ABCDEe";
         let result_hash = info.encode();
 
         assert_eq!(expected_hash.as_bytes().to_vec(), result_hash);
