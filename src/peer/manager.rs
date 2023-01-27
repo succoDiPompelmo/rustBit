@@ -1,4 +1,6 @@
+use std::net::{SocketAddr, TcpStream};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use crate::messages::{new_handshake, new_interested};
 use crate::peer::Peer;
@@ -6,8 +8,53 @@ use crate::torrent::info::Info;
 use crate::torrent::writer::write_piece;
 
 use super::download::{download, Downloadable};
+use super::stream::StreamInterface;
 
-fn starup_peer(peer: &mut Peer) -> Result<(), &'static str> {
+pub fn get_info(info_hash: &[u8], endpoint: String) -> Result<Info, &'static str> {
+    let stream = connect(&endpoint)?;
+    let mut peer = Peer::new(StreamInterface::Tcp(stream), info_hash);
+
+    init_peer(&mut peer)?;
+    Info::from_bytes(download(&mut peer, Downloadable::Info)?)
+}
+
+pub fn peer_thread(
+    endpoint: String,
+    info: Info,
+    lock_counter: Arc<Mutex<usize>>,
+) -> Result<(), &'static str> {
+    let stream = connect(&endpoint)?;
+    let mut peer = Peer::new(StreamInterface::Tcp(stream), &info.compute_info_hash());
+
+    init_peer(&mut peer)?;
+
+    let mut piece_idx = 0;
+
+    loop {
+        if let Ok(mut counter) = lock_counter.lock() {
+            piece_idx = *counter;
+            *counter += 1;
+        }
+
+        let piece = download(
+            &mut peer,
+            Downloadable::Block((info.get_piece_length(), piece_idx, info.get_total_length())),
+        )?;
+
+        if info.verify_piece(&piece, piece_idx) {
+            write_piece(
+                piece,
+                piece_idx,
+                info.get_piece_length(),
+                info.get_files().unwrap(),
+            )
+        } else {
+            return Err("Error during piece verification");
+        }
+    }
+}
+
+fn init_peer(peer: &mut Peer) -> Result<(), &'static str> {
     peer.send_message(new_handshake(&peer.get_info_hash(), &peer.get_peer_id()));
     peer.read_message()
         .map_or((), |msg| peer.apply_message(&msg));
@@ -30,66 +77,10 @@ fn starup_peer(peer: &mut Peer) -> Result<(), &'static str> {
     Err("Peer not ready")
 }
 
-fn prepare_info(
-    peer: &mut Peer,
-    info_arc: &Arc<Mutex<Option<Info>>>,
-) -> Result<(usize, usize), &'static str> {
-    if let Ok(mutex_info) = info_arc.lock() {
-        if (*mutex_info).is_some() {
-            let info = mutex_info.as_ref().unwrap();
-            return Ok((info.get_piece_length(), info.get_total_length()));
-        }
-    }
-
-    let info_bytes = download(peer, Downloadable::Info)?;
-    let info = Info::from_bytes(info_bytes)?;
-
-    if let Ok(mut mutex_info) = info_arc.lock() {
-        let result = (info.get_piece_length(), info.get_total_length());
-        *mutex_info = Some(info);
-        Ok(result)
-    } else {
-        Err("Error during info lock")
-    }
-}
-
-pub fn get_info(peer: &mut Peer) -> Result<Info, &'static str> {
-    starup_peer(peer)?;
-    let info_bytes = download(peer, Downloadable::Info)?;
-    return Info::from_bytes(info_bytes)
-}
-
-pub fn peer_thread(
-    peer: &mut Peer,
-    info: Info,
-    lock_counter: Arc<Mutex<usize>>,
-) -> Result<(), &'static str> {
-    starup_peer(peer)?;
-
-    let mut piece_idx = 0;
-
-    loop {
-        if let Ok(mut counter) = lock_counter.lock() {
-            piece_idx = *counter;
-            *counter += 1;
-        }
-
-        let piece = download(
-            peer,
-            Downloadable::Block((info.get_piece_length(), piece_idx, info.get_total_length())),
-        )?;
-
-        if info.verify_piece(&piece, piece_idx) {
-            write_piece(
-                piece,
-                piece_idx,
-                info.get_piece_length(),
-                info.get_files().unwrap(),
-            )
-        } else {
-            return Err("Error during piece verification");
-        }
-    }
+fn connect(endpoint: &str) -> Result<TcpStream, &'static str> {
+    let server: SocketAddr = endpoint.parse().expect("Unable to parse socket address");
+    let connect_timeout = Duration::from_secs(1);
+    TcpStream::connect_timeout(&server, connect_timeout).map_err(|_| "Error")
 }
 
 // #[cfg(test)]

@@ -3,8 +3,10 @@ pub mod udp_tracker;
 
 use std::fs::File;
 use std::io::prelude::*;
+use std::net::{SocketAddr, TcpStream};
 use std::str;
 use std::sync::mpsc::Sender;
+use std::time::Duration;
 
 use crate::common::generator::generate_peer_id;
 
@@ -24,6 +26,12 @@ impl PeerConnectionInfo {
     pub fn get_peer_endpoint(&self) -> String {
         format!("{}:{}", self.ip, self.port)
     }
+
+    pub fn is_reachable(&self) -> bool {
+        let server: SocketAddr = self.get_peer_endpoint().parse().unwrap();
+        let connect_timeout = Duration::from_secs(1);
+        TcpStream::connect_timeout(&server, connect_timeout).is_ok()
+    }
 }
 
 fn read_file() -> Vec<u8> {
@@ -35,14 +43,14 @@ fn read_file() -> Vec<u8> {
 }
 
 impl Tracker {
-    pub fn find_peers(info_hash: &[u8], peer_info_sender: Sender<Vec<PeerConnectionInfo>>) {
+    pub fn find_peers(info_hash: Vec<u8>, peer_info_sender: Sender<Vec<PeerConnectionInfo>>) {
         let peer_id = &generate_peer_id();
         let trackers_hostname = find_trackers();
 
         for tracker_hostname in trackers_hostname {
             let tracker = match &tracker_hostname[0..3] {
-                "htt" => tcp_tracker::get_tracker(info_hash, peer_id, &tracker_hostname),
-                "udp" => udp_tracker::get_tracker(info_hash, peer_id, &tracker_hostname),
+                "htt" => tcp_tracker::get_tracker(&info_hash, peer_id, &tracker_hostname),
+                "udp" => udp_tracker::get_tracker(&info_hash, peer_id, &tracker_hostname),
                 _ => Err("Protocol not supported"),
             };
 
@@ -53,10 +61,6 @@ impl Tracker {
                     .unwrap();
             }
         }
-    }
-
-    pub fn get_peers_info(&self) -> &Vec<PeerConnectionInfo> {
-        &self.peers
     }
 
     pub fn peers_info_from_bytes(bytes: &[u8]) -> Vec<PeerConnectionInfo> {
@@ -73,6 +77,10 @@ impl Tracker {
         }
 
         peers_info
+    }
+
+    fn get_peers_info(&self) -> &Vec<PeerConnectionInfo> {
+        &self.peers
     }
 }
 

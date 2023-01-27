@@ -84,11 +84,11 @@ impl FileParser {
     }
 
     fn get_start_piece_index(&self) -> usize {
-        (self.start_file_index - self.offset) as usize
+        self.start_file_index - self.offset
     }
 
     fn get_end_piece_index(&self) -> usize {
-        (self.end_file_index - self.offset) as usize
+        self.end_file_index - self.offset
     }
 
     fn get_start_file_index(&self, file_length: usize) -> usize {
