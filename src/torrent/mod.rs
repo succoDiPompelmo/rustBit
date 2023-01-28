@@ -19,14 +19,10 @@ pub struct Torrent {
 impl Torrent {
     pub fn from_metainfo(a: &Metainfo) -> Result<Torrent, &'static str> {
         let announce = a.get_string_from_dict("announce")?;
-
-        let announce_list = match a.get_list_from_dict("announce-list") {
-            Ok(announce_list_metainfo) => {
-                let announce_list = announce_list_from_metainfo(announce_list_metainfo);
-                Some(announce_list)
-            }
-            Err(_) => None,
-        };
+        let announce_list = a
+            .get_list_from_dict("announce-list")
+            .ok()
+            .map(|el| announce_list_from_metainfo(el));
 
         let info_metainfo = a.get_value_from_dict("info")?;
         let info = Info::from_metainfo(info_metainfo)?;
@@ -54,19 +50,20 @@ impl Torrent {
     }
 }
 
-fn announce_list_from_metainfo(announce_list_metainfo: &[Metainfo]) -> Vec<Vec<String>> {
+fn announce_list_from_metainfo(elements: &[Metainfo]) -> Vec<Vec<String>> {
     let mut announce_list: Vec<Vec<String>> = Vec::new();
-    for announce_item_metainfo in announce_list_metainfo {
-        if let Ok(announce_item) = announce_item_metainfo.get_list_content() {
-            announce_list.push(
-                announce_item
-                    .iter()
-                    .map(|item| item.get_string_content().unwrap_or_default())
-                    .collect::<Vec<String>>(),
-            );
-        };
+    for element in elements {
+        element
+            .get_list_content()
+            .map_or((), |item| announce_list.push(announce_list_item(item)));
     }
     announce_list
+}
+
+fn announce_list_item(item: &[Metainfo]) -> Vec<String> {
+    item.iter()
+        .map(|item| item.get_string_content().unwrap_or_default())
+        .collect::<Vec<String>>()
 }
 
 #[cfg(test)]

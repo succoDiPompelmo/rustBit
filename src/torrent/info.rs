@@ -44,16 +44,10 @@ impl Info {
         let name = a.get_string_from_dict("name")?;
         let length = a.get_integer_from_dict("length").ok();
 
-        let files = match a.get_list_from_dict("files") {
-            Ok(metainfo_files) => {
-                let mut output_files = Vec::new();
-                for metainfo_file in metainfo_files {
-                    output_files.push(File::from_metainfo(metainfo_file)?)
-                }
-                Some(output_files)
-            }
-            Err(_) => None,
-        };
+        let files = a
+            .get_list_from_dict("files")
+            .ok()
+            .map(|elements| elements.iter().flat_map(File::from_metainfo).collect());
 
         Ok(Info {
             name,
