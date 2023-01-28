@@ -2,7 +2,7 @@ use std::io::prelude::*;
 use std::time::Duration;
 
 use crate::bencode::decode::Decoder;
-use crate::bencode::metainfo;
+use crate::bencode::metainfo::Metainfo;
 use crate::tracker::Tracker;
 
 pub fn get_tracker(
@@ -24,16 +24,13 @@ pub fn get_tracker(
     Ok(tracker)
 }
 
-fn from_metainfo(metainfo: metainfo::Metainfo) -> Result<Tracker, &'static str> {
+fn from_metainfo(metainfo: Metainfo) -> Result<Tracker, &'static str> {
     let interval = metainfo.get_integer_from_dict("interval")?;
-    let peers_list = match metainfo.get_value_from_dict("peers")? {
-        metainfo::Metainfo::String(peers) => peers,
-        _ => return Err("No pieces found"),
-    };
+    let peers_list = metainfo.get_value_from_dict("peers")?.get_bytes_content()?;
 
     Ok(Tracker {
         interval,
-        peers: Tracker::peers_info_from_bytes(peers_list),
+        peers: Tracker::peers_info_from_bytes(&peers_list),
     })
 }
 

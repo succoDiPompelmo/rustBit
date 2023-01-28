@@ -11,6 +11,13 @@ pub enum Metainfo {
 }
 
 impl Metainfo {
+    pub fn get_bytes_content(&self) -> Result<Vec<u8>, &'static str> {
+        match &self {
+            Metainfo::String(value) => Ok(value.to_vec()),
+            _ => Err("No bytes metainfo found"),
+        }
+    }
+
     pub fn get_string_content(&self) -> Result<String, &'static str> {
         match &self {
             Metainfo::String(value) => str::from_utf8(value)

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::bencode::encode::{encode_dict_entry, Encode};
-use crate::bencode::metainfo;
+use crate::bencode::metainfo::Metainfo;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct File {
@@ -10,7 +10,7 @@ pub struct File {
 }
 
 impl File {
-    pub fn from_metainfo(file: &metainfo::Metainfo) -> Result<File, &'static str> {
+    pub fn from_metainfo(file: &Metainfo) -> Result<File, &'static str> {
         let file_length = file.get_integer_from_dict("length")?;
         let file_path_metainfo = file.get_list_from_dict("path")?;
         let mut file_path = Vec::new();

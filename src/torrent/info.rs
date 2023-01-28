@@ -39,10 +39,7 @@ impl Info {
     }
 
     pub fn from_metainfo(a: &Metainfo) -> Result<Info, &'static str> {
-        let pieces = match a.get_value_from_dict("pieces")? {
-            Metainfo::String(pieces) => pieces,
-            _ => return Err("No pieces found"),
-        };
+        let pieces = a.get_value_from_dict("pieces")?.get_bytes_content()?;
         let piece_length = a.get_integer_from_dict("piece length")?;
         let name = a.get_string_from_dict("name")?;
         let length = a.get_integer_from_dict("length").ok();
