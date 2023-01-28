@@ -4,7 +4,6 @@ pub mod magnet;
 pub mod manager;
 pub mod writer;
 
-use crate::bencode::metainfo;
 use crate::bencode::metainfo::Metainfo;
 use crate::torrent::info::Info;
 use crate::torrent::magnet::Magnet;
@@ -19,9 +18,9 @@ pub struct Torrent {
 
 impl Torrent {
     pub fn from_metainfo(a: &Metainfo) -> Result<Torrent, &'static str> {
-        let announce = metainfo::get_string_from_dict(a, "announce")?;
+        let announce = a.get_string_from_dict("announce")?;
 
-        let announce_list = match metainfo::get_list_from_dict(a, "announce-list") {
+        let announce_list = match a.get_list_from_dict("announce-list") {
             Ok(announce_list_metainfo) => {
                 let announce_list = announce_list_from_metainfo(announce_list_metainfo);
                 Some(announce_list)
@@ -29,7 +28,7 @@ impl Torrent {
             Err(_) => None,
         };
 
-        let info_metainfo = metainfo::get_value_from_dict(a, "info")?;
+        let info_metainfo = a.get_value_from_dict("info")?;
         let info = Info::from_metainfo(info_metainfo)?;
         let info_hash = info.compute_info_hash();
 
@@ -58,11 +57,11 @@ impl Torrent {
 fn announce_list_from_metainfo(announce_list_metainfo: &[Metainfo]) -> Vec<Vec<String>> {
     let mut announce_list: Vec<Vec<String>> = Vec::new();
     for announce_item_metainfo in announce_list_metainfo {
-        if let Ok(announce_item) = metainfo::get_list_content(announce_item_metainfo) {
+        if let Ok(announce_item) = announce_item_metainfo.get_list_content() {
             announce_list.push(
                 announce_item
                     .iter()
-                    .map(|item| metainfo::get_string_content(item).unwrap_or_default())
+                    .map(|item| item.get_string_content().unwrap_or_default())
                     .collect::<Vec<String>>(),
             );
         };

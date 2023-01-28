@@ -8,8 +8,10 @@ use crate::common::mock_stream::MockStream;
 
 #[derive(Debug)]
 pub enum StreamInterface {
+    #[allow(dead_code)]
     Mocked(MockStream),
     Tcp(TcpStream),
+    #[allow(dead_code)]
     Nothing(),
 }
 

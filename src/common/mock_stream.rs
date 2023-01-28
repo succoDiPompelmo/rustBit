@@ -29,13 +29,13 @@ impl MockStream {
     }
 
     /// Extract all bytes written by Write trait calls.
-    #[cfg(test)]
+    #[allow(dead_code)]
     pub fn peek_bytes_written(&mut self) -> &Vec<u8> {
         self.writer.get_ref()
     }
 
     /// Extract all bytes written by Write trait calls.
-    #[cfg(test)]
+    #[allow(dead_code)]
     pub fn peek_bytes_to_read(&mut self) -> usize {
         self.reader.get_ref().len()
     }
@@ -137,6 +137,7 @@ impl FailingMockStream {
     ///
     /// When `read` or `write` is called, it will return an error `repeat_count` times.
     /// `kind` and `message` can be specified to define the exact error.
+    #[allow(dead_code)]
     pub fn new(kind: ErrorKind, message: &'static str, repeat_count: i32) -> FailingMockStream {
         FailingMockStream {
             kind,

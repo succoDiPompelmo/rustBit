@@ -5,6 +5,7 @@ pub mod hello_world {
     tonic::include_proto!("helloworld");
 }
 
+#[allow(dead_code)]
 pub async fn call() {
     let mut client = GreeterClient::connect("http://0.0.0.0:50051")
         .await

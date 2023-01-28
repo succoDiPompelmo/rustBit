@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use crate::bencode::decode::Decoder;
 use crate::bencode::encode::Encode;
-use crate::bencode::metainfo;
 
 #[derive(Debug, Clone)]
 pub struct ExtensionMessage {
@@ -32,10 +31,10 @@ impl ExtensionMessage {
         let content = decoder.decode().unwrap();
 
         let mut extensions = HashMap::new();
-        if let Ok(extensions_metainfo) = metainfo::get_value_from_dict(&content, "m") {
-            let extensions_hash_map = metainfo::get_dict_content(extensions_metainfo).unwrap();
+        if let Ok(extensions_metainfo) = content.get_value_from_dict("m") {
+            let extensions_hash_map = extensions_metainfo.get_dict_content().unwrap();
             for (key, metainfo_value) in extensions_hash_map {
-                let value = metainfo::get_integer_content(metainfo_value).unwrap();
+                let value = metainfo_value.get_integer_content().unwrap();
                 extensions.insert(key.to_owned(), value as u8);
             }
         }
@@ -43,9 +42,9 @@ impl ExtensionMessage {
         ExtensionMessage {
             id: bytes[0],
             data: bytes[decoder.get_total_parsed_bytes() + 1..].to_vec(),
-            msg_type: metainfo::get_integer_from_dict(&content, "msg_type").ok(),
-            metadata_size: metainfo::get_integer_from_dict(&content, "metadata_size").ok(),
-            piece: metainfo::get_integer_from_dict(&content, "piece").ok(),
+            msg_type: content.get_integer_from_dict("msg_type").ok(),
+            metadata_size: content.get_integer_from_dict("metadata_size").ok(),
+            piece: content.get_integer_from_dict("piece").ok(),
             extensions,
         }
     }

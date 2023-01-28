@@ -3,7 +3,6 @@ use sha1::{Digest, Sha1};
 
 use crate::bencode::decode::Decoder;
 use crate::bencode::encode::{encode_dict_entry, Encode};
-use crate::bencode::metainfo;
 use crate::bencode::metainfo::Metainfo;
 use crate::torrent::file::File;
 
@@ -40,15 +39,15 @@ impl Info {
     }
 
     pub fn from_metainfo(a: &Metainfo) -> Result<Info, &'static str> {
-        let pieces = match metainfo::get_value_from_dict(a, "pieces")? {
+        let pieces = match a.get_value_from_dict("pieces")? {
             Metainfo::String(pieces) => pieces,
             _ => return Err("No pieces found"),
         };
-        let piece_length = metainfo::get_integer_from_dict(a, "piece length")?;
-        let name = metainfo::get_string_from_dict(a, "name")?;
-        let length = metainfo::get_integer_from_dict(a, "length").ok();
+        let piece_length = a.get_integer_from_dict("piece length")?;
+        let name = a.get_string_from_dict("name")?;
+        let length = a.get_integer_from_dict("length").ok();
 
-        let files = match metainfo::get_list_from_dict(a, "files") {
+        let files = match a.get_list_from_dict("files") {
             Ok(metainfo_files) => {
                 let mut output_files = Vec::new();
                 for metainfo_file in metainfo_files {

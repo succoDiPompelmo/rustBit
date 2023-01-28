@@ -11,12 +11,12 @@ pub struct File {
 
 impl File {
     pub fn from_metainfo(file: &metainfo::Metainfo) -> Result<File, &'static str> {
-        let file_length = metainfo::get_integer_from_dict(file, "length")?;
-        let file_path_metainfo = metainfo::get_list_from_dict(file, "path")?;
+        let file_length = file.get_integer_from_dict("length")?;
+        let file_path_metainfo = file.get_list_from_dict("path")?;
         let mut file_path = Vec::new();
 
         for a in file_path_metainfo {
-            let path_value = metainfo::get_string_content(a)?;
+            let path_value = a.get_string_content()?;
             file_path.push(path_value);
         }
 

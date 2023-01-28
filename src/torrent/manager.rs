@@ -74,9 +74,7 @@ fn spawn_tracker(info_hash: Vec<u8>) -> Receiver<Vec<PeerConnectionInfo>> {
     rx
 }
 
-fn find_reachable_peers(
-    peers_connection_info: Vec<PeerConnectionInfo>,
-) -> Vec<PeerConnectionInfo> {
+fn find_reachable_peers(peers_connection_info: Vec<PeerConnectionInfo>) -> Vec<PeerConnectionInfo> {
     peers_connection_info
         .to_vec()
         .into_par_iter()

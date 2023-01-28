@@ -25,8 +25,8 @@ pub fn get_tracker(
 }
 
 fn from_metainfo(metainfo: metainfo::Metainfo) -> Result<Tracker, &'static str> {
-    let interval = metainfo::get_integer_from_dict(&metainfo, "interval")?;
-    let peers_list = match metainfo::get_value_from_dict(&metainfo, "peers")? {
+    let interval = metainfo.get_integer_from_dict("interval")?;
+    let peers_list = match metainfo.get_value_from_dict("peers")? {
         metainfo::Metainfo::String(peers) => peers,
         _ => return Err("No pieces found"),
     };

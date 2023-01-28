@@ -45,7 +45,7 @@ fn read_file() -> Vec<u8> {
 impl Tracker {
     pub fn find_peers(info_hash: Vec<u8>, peer_info_sender: Sender<Vec<PeerConnectionInfo>>) {
         let peer_id = &generate_peer_id();
-        let trackers_hostname = find_trackers();
+        let trackers_hostname = list_trackers();
 
         for tracker_hostname in trackers_hostname {
             let tracker = match &tracker_hostname[0..3] {
@@ -84,7 +84,7 @@ impl Tracker {
     }
 }
 
-fn find_trackers() -> Vec<String> {
+fn list_trackers() -> Vec<String> {
     let tracker_list = str::from_utf8(read_file().as_slice()).unwrap().to_owned();
     tracker_list
         .split('\n')
