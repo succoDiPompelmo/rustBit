@@ -5,11 +5,13 @@ use crate::bencode::decode::Decoder;
 use crate::bencode::metainfo::Metainfo;
 use crate::tracker::Tracker;
 
+use super::PeerConnectionInfo;
+
 pub fn get_tracker(
     info_hash: &[u8],
     peer_id: &str,
     tracker: &str,
-) -> Result<Tracker, &'static str> {
+) -> Result<Vec<PeerConnectionInfo>, &'static str> {
     let url_encoded_info_hash = urlencoding::encode_binary(info_hash).into_owned();
 
     let tracker_url = format!(
@@ -19,19 +21,13 @@ pub fn get_tracker(
 
     let result = get_peers(tracker_url)?;
     let tracker_metainfo = Decoder::init(result).decode()?;
-    let tracker = from_metainfo(tracker_metainfo)?;
-
-    Ok(tracker)
+    from_metainfo(tracker_metainfo)
 }
 
-fn from_metainfo(metainfo: Metainfo) -> Result<Tracker, &'static str> {
-    let interval = metainfo.get_integer_from_dict("interval")?;
+fn from_metainfo(metainfo: Metainfo) -> Result<Vec<PeerConnectionInfo>, &'static str> {
     let peers_list = metainfo.get_value_from_dict("peers")?.get_bytes_content()?;
 
-    Ok(Tracker {
-        interval,
-        peers: Tracker::peers_info_from_bytes(&peers_list),
-    })
+    Ok(Tracker::peers_info_from_bytes(&peers_list))
 }
 
 fn get_peers(url: String) -> Result<Vec<u8>, &'static str> {
@@ -42,21 +38,17 @@ fn get_peers(url: String) -> Result<Vec<u8>, &'static str> {
 }
 
 fn call_tracker_for_peers(url: String) -> Result<ureq::Response, &'static str> {
-    for _ in 1..2 {
-        let response_result = ureq::get(&url)
-            .timeout(Duration::from_millis(500))
-            .set("Accept-Encoding", "gzip, deflate, br")
-            .set("Accept", "*/*")
-            .set("Connection", "keep-alive")
-            .set("User-Agent", "PostmanRuntime/7.29.0")
-            .set("Host", "192.168.1.2")
-            .call();
+    let response_result = ureq::get(&url)
+        .timeout(Duration::from_millis(400))
+        .set("Accept-Encoding", "gzip, deflate, br")
+        .set("Accept", "*/*")
+        .set("Connection", "keep-alive")
+        .set("User-Agent", "PostmanRuntime/7.29.0")
+        .set("Host", "192.168.1.2")
+        .call();
 
-        match response_result {
-            Err(_) => (),
-            Ok(response) => return Ok(response),
-        }
+    match response_result {
+        Err(_) => Err("Error calling tcp tracker"),
+        Ok(response) => return Ok(response),
     }
-
-    Err("Maximum retires reached")
 }

@@ -1,11 +1,7 @@
 use std::{
     fs::File,
     io::Read,
-    sync::{
-        mpsc::{self, Receiver, Sender},
-        Arc, Mutex,
-    },
-    thread,
+    sync::{Arc, Mutex},
 };
 
 use rayon::prelude::*;
@@ -14,7 +10,7 @@ use crate::{
     common::thread_pool::ThreadPool,
     peer::manager::{get_info, peer_thread},
     torrent::Torrent,
-    tracker::{PeerConnectionInfo, Tracker},
+    tracker::Tracker,
 };
 
 use super::info::Info;
@@ -22,28 +18,24 @@ use super::info::Info;
 pub struct TorrentManager {}
 
 impl TorrentManager {
-    pub fn init(torrent: &mut Torrent) {
-        let rx_tracker = spawn_tracker(torrent.get_info_hash());
-
-        let info = retrieve_info(&torrent.get_info_hash(), &rx_tracker);
+    pub async fn init(torrent: Torrent) {
+        let info = retrieve_info(&torrent.get_info_hash()).await;
 
         let piece_counter = Arc::new(Mutex::new(0));
         let pool = ThreadPool::new(1);
 
         loop {
-            let connections = find_reachable_peers(rx_tracker.recv().unwrap());
-            for connection in connections {
+            let endpoints = find_reachable_peers(&torrent.get_info_hash()).await;
+            for endpoint in endpoints {
                 let counter_clone = piece_counter.clone();
                 let info_clone = info.clone();
-                pool.execute(move || {
-                    peer_thread(connection.get_peer_endpoint(), info_clone, counter_clone)
-                });
+                pool.execute(move || peer_thread(endpoint, info_clone, counter_clone));
             }
         }
     }
 }
 
-fn retrieve_info(info_hash: &[u8], tracker: &Receiver<Vec<PeerConnectionInfo>>) -> Info {
+async fn retrieve_info(info_hash: &[u8]) -> Info {
     let filename = urlencoding::encode_binary(info_hash).into_owned();
 
     if let Ok(mut info_file) = File::open(&filename) {
@@ -54,9 +46,9 @@ fn retrieve_info(info_hash: &[u8], tracker: &Receiver<Vec<PeerConnectionInfo>>) 
     }
 
     loop {
-        let connections = find_reachable_peers(tracker.recv().unwrap());
-        for connection in connections {
-            if let Ok(info) = get_info(info_hash, connection.get_peer_endpoint()) {
+        let endpoints = find_reachable_peers(info_hash).await;
+        for endpoint in endpoints {
+            if let Ok(info) = get_info(info_hash, endpoint) {
                 serde_json::to_writer(&File::create(&filename).unwrap(), &info).unwrap();
                 return info;
             }
@@ -64,20 +56,15 @@ fn retrieve_info(info_hash: &[u8], tracker: &Receiver<Vec<PeerConnectionInfo>>) 
     }
 }
 
-fn spawn_tracker(info_hash: Vec<u8>) -> Receiver<Vec<PeerConnectionInfo>> {
-    let (tx, rx): (
-        Sender<Vec<PeerConnectionInfo>>,
-        Receiver<Vec<PeerConnectionInfo>>,
-    ) = mpsc::channel();
-
-    thread::spawn(move || Tracker::find_peers(info_hash, tx));
-    rx
-}
-
-fn find_reachable_peers(peers_connection_info: Vec<PeerConnectionInfo>) -> Vec<PeerConnectionInfo> {
-    peers_connection_info
-        .to_vec()
-        .into_par_iter()
-        .filter(|el| el.is_reachable())
-        .collect()
+async fn find_reachable_peers(info_hash: &[u8]) -> Vec<String> {
+    if let Some(peers) = Tracker::get_tracked_peers(info_hash.to_vec()).await {
+        peers
+            .to_vec()
+            .into_par_iter()
+            .filter(|el| el.is_reachable())
+            .map(|e| e.endpoint())
+            .collect()
+    } else {
+        vec![]
+    }
 }

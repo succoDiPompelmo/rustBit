@@ -3,11 +3,13 @@ use std::time::Duration;
 
 use crate::tracker::Tracker;
 
+use super::PeerConnectionInfo;
+
 pub fn get_tracker(
     info_hash: &[u8],
     peer_id: &str,
     tracker_url: &str,
-) -> Result<Tracker, &'static str> {
+) -> Result<Vec<PeerConnectionInfo>, &'static str> {
     let socket = UdpSocket::bind("0.0.0.0:34222").expect("couldn't bind to address");
     let tracker_hostname = get_tracker_hostname(tracker_url);
 
@@ -22,17 +24,13 @@ pub fn get_tracker(
     );
     send_upd_packet(&socket, message, tracker_hostname)?;
 
-    socket.set_read_timeout(Some(Duration::new(10, 0))).unwrap();
+    socket.set_read_timeout(Some(Duration::new(3, 0))).unwrap();
     let mut annouce_buf: [u8; 4000] = [0x00; 4000];
 
     let resp_size = read_upd_packet(&socket, &mut annouce_buf)?;
 
     if resp_size > 26 {
-        let peers_info = Tracker::peers_info_from_bytes(&annouce_buf[20..resp_size]);
-        return Ok(Tracker {
-            interval: 0,
-            peers: peers_info,
-        });
+        return Ok(Tracker::peers_info_from_bytes(&annouce_buf[20..resp_size]));
     }
 
     Err("")
