@@ -1,12 +1,11 @@
 pub mod tcp_tracker;
 pub mod udp_tracker;
 
-use std::fs::File;
-use std::io::prelude::*;
 use std::net::{SocketAddr, TcpStream};
 use std::str;
 use std::time::Duration;
 
+use crate::common::file::read_file;
 use crate::common::generator::generate_peer_id;
 
 use sqlx::postgres::PgConnection;
@@ -44,14 +43,6 @@ impl PeerConnectionInfo {
     }
 }
 
-fn read_file() -> Vec<u8> {
-    let mut file = File::open("tracker_list.txt").unwrap();
-    let mut contents = Vec::new();
-    file.read_to_end(&mut contents).unwrap();
-
-    contents
-}
-
 impl Tracker {
     pub async fn get_tracked_peers(info_hash: Vec<u8>) -> Option<Vec<TrackedPeer>> {
         let mut db = PgConnection::connect("postgres://postgres:password@localhost/rust_bit")
@@ -83,13 +74,13 @@ impl Tracker {
                     "udp" => udp_tracker::get_tracker(&info_hash, peer_id, &tracker_hostname),
                     _ => Err("Protocol not supported"),
                 };
-    
+
                 if let Ok(peers) = tracker {
                     for peer in &peers {
                         let query = "INSERT INTO tracked_peers
                         (info_hash, endpoint)
                         VALUES ($1, $2) ON CONFLICT (info_hash, endpoint) DO NOTHING";
-    
+
                         sqlx::query(query)
                             .bind(info_hash.to_vec())
                             .bind(peer.get_peer_endpoint())
@@ -120,7 +111,9 @@ impl Tracker {
 }
 
 fn list_trackers() -> Vec<String> {
-    let tracker_list = str::from_utf8(read_file().as_slice()).unwrap().to_owned();
+    let tracker_list = str::from_utf8(read_file("tracker_list.txt").as_slice())
+        .unwrap()
+        .to_owned();
     tracker_list
         .split('\n')
         .map(|tracker| tracker.to_owned())

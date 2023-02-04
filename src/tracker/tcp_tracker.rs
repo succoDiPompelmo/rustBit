@@ -49,6 +49,6 @@ fn call_tracker_for_peers(url: String) -> Result<ureq::Response, &'static str> {
 
     match response_result {
         Err(_) => Err("Error calling tcp tracker"),
-        Ok(response) => return Ok(response),
+        Ok(response) => Ok(response),
     }
 }

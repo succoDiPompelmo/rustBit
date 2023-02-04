@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::bencode::decode::Decoder;
 use crate::bencode::encode::Encode;
+use crate::bencode::metainfo::Metainfo;
 
 #[derive(Debug, Clone)]
 pub struct ExtensionMessage {
@@ -30,14 +31,13 @@ impl ExtensionMessage {
         let mut decoder = Decoder::init(bytes[1..].to_vec());
         let content = decoder.decode().unwrap();
 
-        let mut extensions = HashMap::new();
-        if let Ok(extensions_metainfo) = content.get_value_from_dict("m") {
-            let extensions_hash_map = extensions_metainfo.get_dict_content().unwrap();
-            for (key, metainfo_value) in extensions_hash_map {
-                let value = metainfo_value.get_integer_content().unwrap();
-                extensions.insert(key.to_owned(), value as u8);
-            }
-        }
+        let default = HashMap::new();
+        let extensions = content
+            .get_value_from_dict("m")
+            .ok()
+            .map(|e| e.get_dict_content())
+            .map(|e| e.unwrap_or(&default))
+            .map_or(HashMap::new(), build_extensions_map);
 
         ExtensionMessage {
             id: bytes[0],
@@ -82,6 +82,18 @@ impl ExtensionMessage {
 
         [vec![self.id], body_raw.encode()].concat()
     }
+}
+
+fn build_extensions_map(metainfo_map: &HashMap<String, Metainfo>) -> HashMap<String, u8> {
+    let mut extension: HashMap<String, u8> = HashMap::new();
+    for (key, metainfo_value) in metainfo_map {
+        if let Ok(value) = metainfo_value.get_integer_content() {
+            extension.insert(key.to_owned(), value as u8);
+        } else {
+            println!("No extension value found from {:?}", metainfo_value);
+        }
+    }
+    extension
 }
 
 #[cfg(test)]

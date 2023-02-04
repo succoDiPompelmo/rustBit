@@ -49,32 +49,28 @@ impl Metainfo {
     }
 
     pub fn get_value_from_dict(&self, key: &str) -> Result<&Metainfo, &'static str> {
-        let dict = self.get_dict_content()?;
-        match dict.get(key) {
+        match self.get_dict_content()?.get(key) {
             Some(value) => Ok(value),
             _ => Err("No key found in dict"),
         }
     }
 
     pub fn get_string_from_dict(&self, key: &str) -> Result<String, &'static str> {
-        let dict = self.get_dict_content()?;
-        match dict.get(key) {
+        match self.get_dict_content()?.get(key) {
             Some(value) => value.get_string_content(),
             _ => Err("No key found in dict"),
         }
     }
 
     pub fn get_integer_from_dict(&self, key: &str) -> Result<usize, &'static str> {
-        let dict = self.get_dict_content()?;
-        match dict.get(key) {
+        match self.get_dict_content()?.get(key) {
             Some(Metainfo::Integer(value)) => Ok(*value),
             _ => Err("No key found in dict"),
         }
     }
 
     pub fn get_list_from_dict(&self, key: &str) -> Result<&Vec<Metainfo>, &'static str> {
-        let dict = self.get_dict_content()?;
-        match dict.get(key) {
+        match self.get_dict_content()?.get(key) {
             Some(Metainfo::List(value)) => Ok(value),
             _ => Err("No key found in dict"),
         }

@@ -7,21 +7,11 @@ mod peer;
 mod torrent;
 mod tracker;
 
-use std::fs::File;
-use std::io::prelude::*;
-
+use crate::common::file::read_file;
 use crate::torrent::magnet;
 use crate::torrent::manager::TorrentManager;
 use crate::torrent::Torrent;
 use crate::tracker::Tracker;
-
-fn read_file() -> Vec<u8> {
-    let mut file = File::open("torrent_files/HouseOfDragons.torrent").unwrap();
-    let mut contents = Vec::new();
-    file.read_to_end(&mut contents).unwrap();
-
-    contents
-}
 
 use actix_web::{post, App, HttpResponse, HttpServer};
 
@@ -30,7 +20,7 @@ async fn add_magnet(torrent_source: String) -> HttpResponse {
     println!("{:?}", torrent_source);
 
     let torrent = if torrent_source.ends_with(".torrent") {
-        let contents = read_file();
+        let contents = read_file("torrent_files/HouseOfDragons.torrent");
         let decoded_data = bencode::decode::Decoder::init(contents).decode().unwrap();
         Torrent::from_metainfo(&decoded_data).unwrap()
     } else {
