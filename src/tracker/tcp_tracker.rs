@@ -33,7 +33,7 @@ fn from_metainfo(metainfo: Metainfo) -> Result<Vec<PeerConnectionInfo>, &'static
 fn get_peers(url: String) -> Result<Vec<u8>, &'static str> {
     let respone = call_tracker_for_peers(url)?;
     let mut bytes = vec![];
-    respone.into_reader().read_to_end(&mut bytes).unwrap();
+    respone.into_reader().read_to_end(&mut bytes).map_err(|_| "Reading buffer error")?;
     Ok(bytes)
 }
 

@@ -24,7 +24,7 @@ pub fn get_tracker(
     );
     send_upd_packet(&socket, message, tracker_hostname)?;
 
-    socket.set_read_timeout(Some(Duration::new(3, 0))).unwrap();
+    socket.set_read_timeout(Some(Duration::new(3, 0))).map_err(|_| "Set timeout on read error")?;
     let mut annouce_buf: [u8; 4000] = [0x00; 4000];
 
     let resp_size = read_upd_packet(&socket, &mut annouce_buf)?;
@@ -58,7 +58,7 @@ fn connect_to_tracker(
 fn read_upd_packet(socket: &UdpSocket, buffer: &mut [u8]) -> Result<usize, &'static str> {
     socket
         .set_read_timeout(Some(Duration::from_millis(200)))
-        .unwrap();
+        .map_err(|_| "Set timeout on read error")?;
 
     let (resp_size, _) = socket
         .recv_from(buffer)
