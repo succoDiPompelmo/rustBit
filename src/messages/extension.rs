@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use log::{info};
+
 use crate::bencode::decode::Decoder;
 use crate::bencode::encode::Encode;
 use crate::bencode::metainfo::Metainfo;
@@ -90,7 +92,7 @@ fn build_extensions_map(metainfo_map: &HashMap<String, Metainfo>) -> HashMap<Str
         if let Ok(value) = metainfo_value.get_integer_content() {
             extension.insert(key.to_owned(), value as u8);
         } else {
-            println!("No extension value found from {:?}", metainfo_value);
+            info!("No extension value found from {:?}", metainfo_value);
         }
     }
     extension

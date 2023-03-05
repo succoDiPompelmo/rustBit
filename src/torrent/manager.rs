@@ -6,6 +6,8 @@ use std::{
 
 use rayon::prelude::*;
 
+use log::{info};
+
 use crate::{
     common::thread_pool::ThreadPool,
     peer::manager::{get_info, peer_thread},
@@ -22,7 +24,7 @@ impl TorrentManager {
         let info = retrieve_info(&torrent.get_info_hash()).await;
 
         let piece_counter = Arc::new(Mutex::new(0));
-        let pool = ThreadPool::new(1);
+        let pool = ThreadPool::new(3);
 
         loop {
             let endpoints = find_reachable_peers(&torrent.get_info_hash()).await;
@@ -39,6 +41,7 @@ async fn retrieve_info(info_hash: &[u8]) -> Info {
     let filename = urlencoding::encode_binary(info_hash).into_owned();
 
     if let Ok(mut info_file) = File::open(&filename) {
+        info!("Torrent info from file: {:?}", filename);
         let mut info_buffer = "".to_string();
         info_file.read_to_string(&mut info_buffer).unwrap();
 
@@ -49,6 +52,7 @@ async fn retrieve_info(info_hash: &[u8]) -> Info {
         let endpoints = find_reachable_peers(info_hash).await;
         for endpoint in endpoints {
             if let Ok(info) = get_info(info_hash, endpoint) {
+                info!("Torrent info from peer");
                 serde_json::to_writer(&File::create(&filename).unwrap(), &info).unwrap();
                 return info;
             }

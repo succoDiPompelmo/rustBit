@@ -2,6 +2,8 @@ use std::net::{SocketAddr, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use log::{error, info};
+
 use crate::messages::{new_handshake, new_interested};
 use crate::peer::Peer;
 use crate::torrent::info::Info;
@@ -36,10 +38,14 @@ pub fn peer_thread(
             *counter += 1;
         }
 
+        info!("Starting to download piece {:?} from peer {:?}", piece_idx, endpoint);
+
         let piece = download(
             &mut peer,
             Downloadable::Block((info.get_piece_length(), piece_idx, info.get_total_length())),
         )?;
+
+        info!("Completed download for piece {:?} from peer {:?}", piece_idx, endpoint);
 
         if info.verify_piece(&piece, piece_idx) {
             write_piece(
@@ -47,7 +53,9 @@ pub fn peer_thread(
                 piece_idx,
                 info.get_piece_length(),
                 info.get_files().unwrap(),
-            )
+            );
+            info!("Completed write to filesystem for piece {:?} from peer {:?}", piece_idx, endpoint);
+
         } else {
             return Err("Error during piece verification");
         }

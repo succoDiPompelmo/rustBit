@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::str;
 
+use log::{error};
+
 use crate::bencode::metainfo::Metainfo;
 
 pub struct Decoder {
@@ -35,7 +37,7 @@ impl Decoder {
         let string_integer = match str::from_utf8(&self.contents[start..end]) {
             Ok(result) => result,
             Err(_) => {
-                println!(
+                error!(
                     "Error during string conversion at position {:?}",
                     self.current
                 );
@@ -46,7 +48,7 @@ impl Decoder {
         match string_integer.parse() {
             Ok(result) => Ok(result),
             Err(_) => {
-                println!(
+                error!(
                     "Error during integer conversion at position {:?}",
                     self.current
                 );

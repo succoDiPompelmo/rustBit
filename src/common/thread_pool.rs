@@ -5,6 +5,8 @@ use std::thread;
 use std::sync::Arc;
 use std::sync::Mutex;
 
+use log::{error};
+
 pub struct ThreadPool {
     #[allow(dead_code)]
     workers: Vec<Worker>,
@@ -69,7 +71,7 @@ impl Worker {
 
             match job.call_box() {
                 Ok(_) => (),
-                Err(err) => println!(
+                Err(err) => error!(
                     "Worker {:?} got an error during job execution: {:?}",
                     id, err
                 ),

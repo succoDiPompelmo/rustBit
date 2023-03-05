@@ -5,6 +5,8 @@ pub mod stream;
 
 use std::collections::HashMap;
 
+use log::{info};
+
 use crate::common::generator::generate_peer_id;
 use crate::messages::{ContentType, Message};
 use crate::peer::stream::{
@@ -73,27 +75,27 @@ impl Peer {
     fn apply_message(&mut self, message: &Message) {
         match message.get_id() {
             0 => {
-                println!("CHOKE MESSAGE");
+                info!("Peer {:?} get a CHOKE message", self.get_peer_id());
                 self.choked = true;
             }
             1 => {
-                println!("UNCHOKE MESSAGE");
+                info!("Peer {:?} get a UNCHOKE message", self.get_peer_id());
                 self.choked = false;
             }
             2 => {
-                println!("BITFIELD MESSAGE");
+                info!("Peer {:?} get a BITFIELD message", self.get_peer_id());
                 self.apply_content(message);
             }
             5 => {
-                println!("BITFIELD MESSAGE");
+                info!("Peer {:?} get a ?? message", self.get_peer_id());
                 self.apply_content(message)
             }
             19 => {
-                println!("HANDSHAKE MESSAGE");
+                info!("Peer {:?} get a HANDSHAKE message", self.get_peer_id());
                 self.apply_content(message)
             }
             20 => {
-                println!("EXTENSION MESSAGE");
+                info!("Peer {:?} get a EXTENSION message", self.get_peer_id());
                 self.apply_content(message)
             }
             _ => (),
@@ -112,7 +114,7 @@ impl Peer {
             ContentType::Handshake(handshake) => {
                 self.active = self.info_hash == handshake.get_info_hash()
             }
-            _ => println!("{:?}", message),
+            _ => info!("Peer {:?} message content type not managed for: {:?}", self.get_peer_id(), message),
         }
     }
 

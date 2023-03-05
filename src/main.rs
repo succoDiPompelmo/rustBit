@@ -7,17 +7,24 @@ mod peer;
 mod torrent;
 mod tracker;
 
-use crate::common::file::read_file;
-use crate::torrent::magnet;
-use crate::torrent::manager::TorrentManager;
-use crate::torrent::Torrent;
-use crate::tracker::Tracker;
+use chrono::Local;
+use env_logger::Builder;
+use log::{info, LevelFilter};
+
+use std::fs::File;
+use std::io::Write;
+
+use common::file::read_file;
+use torrent::magnet;
+use torrent::manager::TorrentManager;
+use torrent::Torrent;
+use tracker::Tracker;
 
 use actix_web::{post, App, HttpResponse, HttpServer};
 
 #[post("/torrent")]
 async fn add_magnet(torrent_source: String) -> HttpResponse {
-    println!("{:?}", torrent_source);
+    info!("{:?}", torrent_source);
 
     let torrent = if torrent_source.ends_with(".torrent") {
         let contents = read_file("torrent_files/HouseOfDragons.torrent");
@@ -36,6 +43,23 @@ async fn add_magnet(torrent_source: String) -> HttpResponse {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    let target = Box::new(File::create("./test.log").expect("Can't create file"));
+    Builder::new()
+        .format(|buf, record| {
+            writeln!(
+                buf,
+                "{}:{} {} [{}] - {}",
+                record.file().unwrap_or("unknown"),
+                record.line().unwrap_or(0),
+                Local::now().format("%Y-%m-%dT%H:%M:%S%.3f"),
+                record.level(),
+                record.args()
+            )
+        })
+        .target(env_logger::Target::Pipe(target))
+        .filter(None, LevelFilter::Debug)
+        .init();
+
     HttpServer::new(|| App::new().service(add_magnet))
         .bind(("127.0.0.1", 8080))?
         .run()

@@ -4,6 +4,8 @@ use std::net::TcpStream;
 use std::time::Duration;
 use std::{thread, time, vec};
 
+use log::{error};
+
 use crate::common::mock_stream::MockStream;
 
 #[derive(Debug)]
@@ -123,7 +125,7 @@ pub fn read_stream(stream: &mut StreamInterface) -> Option<(Vec<u8>, u8, u32)> {
 pub fn write_stream(stream: &mut StreamInterface, buffer: &[u8]) {
     match stream.write_all(buffer) {
         Ok(_) => (),
-        Err(err) => println!("Error {:?} in writing buffer {:?}", err, buffer),
+        Err(err) => error!("Error {:?} in writing buffer {:?}", err, buffer),
     }
 }
 
