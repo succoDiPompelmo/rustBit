@@ -5,6 +5,8 @@ use crate::bencode::decode::Decoder;
 use crate::bencode::metainfo::Metainfo;
 use crate::tracker::Tracker;
 
+use log::{error};
+
 use super::PeerConnectionInfo;
 
 pub fn get_tracker(
@@ -20,7 +22,13 @@ pub fn get_tracker(
     );
 
     let result = get_peers(tracker_url)?;
-    let tracker_metainfo = Decoder::init(result).decode()?;
+    let tracker_metainfo = match Decoder::init(result).decode() {
+        Ok(value) => value,
+        Err(err) => return {
+            error!("{:?}", err.to_string());
+            Err("Error during decoding")
+        }
+    };
     from_metainfo(tracker_metainfo)
 }
 

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use log::{info};
+use log::{info, error};
 
 use crate::bencode::decode::Decoder;
 use crate::bencode::encode::Encode;
@@ -31,7 +31,13 @@ impl ExtensionMessage {
 
     pub fn from_bytes(bytes: &[u8]) -> Result<ExtensionMessage, &'static str> {
         let mut decoder = Decoder::init(bytes[1..].to_vec());
-        let content = decoder.decode()?;
+        let content = match decoder.decode() {
+            Ok(value) => value,
+            Err(err) => return {
+                error!("{:?}", err.to_string());
+                Err("Error during decoding")
+            }
+        };
 
         let default = HashMap::new();
         let extensions = content

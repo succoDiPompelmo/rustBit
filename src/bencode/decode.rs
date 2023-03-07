@@ -10,6 +10,18 @@ pub struct Decoder {
     contents: Vec<u8>,
 }
 
+#[derive(thiserror::Error, Debug, Clone)]
+pub enum DecoderError {
+    #[error("Bad number from string at position: {0}")]
+    BadNumberFromString(usize),
+    #[error("Bad number decode from: {0}")]
+    BadNumberDecode(String),
+    #[error("Expected to parse a string at position: {0}")]
+    NoStringFound(usize),
+    #[error("Bad string from bytes conversion at position: {0}")]
+    BadStringFromBytes(usize),
+}
+
 // Starting from here we should use Error types instead of strings.
 impl Decoder {
     pub fn init(source: Vec<u8>) -> Decoder {
@@ -28,7 +40,7 @@ impl Decoder {
         self.contents[self.current]
     }
 
-    fn get_consecutive_digits(&mut self) -> Result<usize, &'static str> {
+    fn get_consecutive_digits(&mut self) -> Result<usize, DecoderError> {
         let start = self.current;
         while self.get_current_byte().is_ascii_digit() {
             self.advance();
@@ -42,7 +54,7 @@ impl Decoder {
                     "Error during string conversion at position {:?}",
                     self.current
                 );
-                return Err("Error during string conversion at position");
+                return Err(DecoderError::BadNumberFromString(self.current));
             }
         };
 
@@ -53,12 +65,12 @@ impl Decoder {
                     "Error during integer conversion at position {:?}",
                     self.current
                 );
-                Err("Error during integer conversion")
+                Err(DecoderError::BadNumberDecode(string_integer.to_owned()))
             }
         }
     }
 
-    fn parse_integer(&mut self) -> Result<Metainfo, &'static str> {
+    fn parse_integer(&mut self) -> Result<Metainfo, DecoderError> {
         self.advance();
         let integer: usize = self.get_consecutive_digits()?;
 
@@ -69,7 +81,7 @@ impl Decoder {
         Ok(Metainfo::Integer(integer))
     }
 
-    fn parse_string(&mut self) -> Result<Metainfo, &'static str> {
+    fn parse_string(&mut self) -> Result<Metainfo, DecoderError> {
         let integer = self.get_consecutive_digits()?;
         // TODO: Mettere check semicolon
         self.advance();
@@ -79,7 +91,7 @@ impl Decoder {
         Ok(Metainfo::String(b.to_vec()))
     }
 
-    fn parse_list(&mut self) -> Result<Metainfo, &'static str> {
+    fn parse_list(&mut self) -> Result<Metainfo, DecoderError> {
         self.advance();
         let mut list: Vec<Metainfo> = Vec::new();
 
@@ -91,17 +103,17 @@ impl Decoder {
         Ok(Metainfo::List(list))
     }
 
-    fn parse_dictionary(&mut self) -> Result<Metainfo, &'static str> {
+    fn parse_dictionary(&mut self) -> Result<Metainfo, DecoderError> {
         self.advance();
 
         let mut dictionary = HashMap::new();
         while self.get_current_byte() != b'e' {
             let key = if let Metainfo::String(raw_key) = self.parse_string()? {
                 str::from_utf8(&raw_key)
-                    .map_err(|_| "Error in string conversion")?
+                    .map_err(|_| DecoderError::BadStringFromBytes(self.current))?
                     .to_owned()
             } else {
-                return Err("Error in string parsing");
+                return Err(DecoderError::NoStringFound(self.current));
             };
             let value = self.decode()?;
             dictionary.insert(key, value);
@@ -111,7 +123,7 @@ impl Decoder {
         Ok(Metainfo::Dictionary(dictionary))
     }
 
-    pub fn decode(&mut self) -> Result<Metainfo, &'static str> {
+    pub fn decode(&mut self) -> Result<Metainfo, DecoderError> {
         let result = match self.contents.get(self.current) {
             None => Metainfo::Nothing(),
             Some(b'i') => self.parse_integer()?,
