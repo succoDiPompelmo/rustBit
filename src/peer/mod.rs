@@ -5,7 +5,7 @@ pub mod stream;
 
 use std::collections::HashMap;
 
-use log::{info};
+use log::{error, info};
 
 use crate::common::generator::generate_peer_id;
 use crate::messages::{ContentType, Message};
@@ -119,14 +119,17 @@ impl Peer {
     }
 
     pub fn read_message(&mut self) -> Option<Message> {
-        read_stream(&mut self.stream).map(|(body, id, length)| Message::new_raw(body, length, id))
+        if let Some((body, id, length)) = read_stream(&mut self.stream) {
+            return Message::new_raw(body, length, id).ok()
+        }
+        None
     }
 
     pub fn send_message(&mut self, message: Message) {
         write_stream(&mut self.stream, &message.as_bytes())
     }
 
-    pub fn send_metadata_handshake_request(&mut self) {
+    pub fn send_metadata_handshake_request(&mut self) -> Result<(), &'static str> {
         send_metadata_handshake_request(&mut self.stream)
     }
 

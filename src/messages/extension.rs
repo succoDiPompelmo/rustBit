@@ -29,9 +29,9 @@ impl ExtensionMessage {
         }
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> ExtensionMessage {
+    pub fn from_bytes(bytes: &[u8]) -> Result<ExtensionMessage, &'static str> {
         let mut decoder = Decoder::init(bytes[1..].to_vec());
-        let content = decoder.decode().unwrap();
+        let content = decoder.decode()?;
 
         let default = HashMap::new();
         let extensions = content
@@ -41,14 +41,14 @@ impl ExtensionMessage {
             .map(|e| e.unwrap_or(&default))
             .map_or(HashMap::new(), build_extensions_map);
 
-        ExtensionMessage {
+        Ok(ExtensionMessage {
             id: bytes[0],
             data: bytes[decoder.get_total_parsed_bytes() + 1..].to_vec(),
             msg_type: content.get_integer_from_dict("msg_type").ok(),
             metadata_size: content.get_integer_from_dict("metadata_size").ok(),
             piece: content.get_integer_from_dict("piece").ok(),
             extensions,
-        }
+        })
     }
 
     pub fn get_metadata_size(&self) -> Option<usize> {
@@ -123,7 +123,7 @@ mod test {
         let id: u8 = 20;
         let input = [vec![id], b"d13:metadata_sizei1024e1:md3:fooi2eee".to_vec()].concat();
 
-        let outcome = ExtensionMessage::from_bytes(&input);
+        let outcome = ExtensionMessage::from_bytes(&input).unwrap();
         assert_eq!(Some(1024), outcome.get_metadata_size());
         assert_eq!(
             &HashMap::from([("foo".to_owned(), 2)]),
@@ -144,7 +144,7 @@ mod test {
         ]
         .concat();
 
-        let outcome = ExtensionMessage::from_bytes(&input);
+        let outcome = ExtensionMessage::from_bytes(&input).unwrap();
         assert_eq!(None, outcome.get_metadata_size());
         assert_eq!(&HashMap::from([]), outcome.get_extensions());
         assert_eq!(data, outcome.get_data());

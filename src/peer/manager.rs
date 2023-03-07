@@ -32,20 +32,21 @@ pub fn peer_thread(
 
     let mut piece_idx = 0;
 
+// Use a queue to manage the insertion/retry of piece download
     loop {
         if let Ok(mut counter) = lock_counter.lock() {
             piece_idx = *counter;
             *counter += 1;
         }
 
-        info!("Starting to download piece {:?} from peer {:?}", piece_idx, endpoint);
+        info!("Start download by {:?} piece {:?} from peer {:?}", peer.get_peer_id(), piece_idx, endpoint);
 
         let piece = download(
             &mut peer,
             Downloadable::Block((info.get_piece_length(), piece_idx, info.get_total_length())),
         )?;
 
-        info!("Completed download for piece {:?} from peer {:?}", piece_idx, endpoint);
+        info!("Completed downloadby {:?} for piece {:?} from peer {:?}", peer.get_peer_id(), piece_idx, endpoint);
 
         if info.verify_piece(&piece, piece_idx) {
             write_piece(
@@ -54,7 +55,7 @@ pub fn peer_thread(
                 info.get_piece_length(),
                 info.get_files().unwrap(),
             );
-            info!("Completed write to filesystem for piece {:?} from peer {:?}", piece_idx, endpoint);
+            info!("Completed write by {:?} to filesystem for piece {:?} from peer {:?}", peer.get_peer_id(), piece_idx, endpoint);
 
         } else {
             return Err("Error during piece verification");
@@ -72,7 +73,7 @@ fn init_peer(peer: &mut Peer) -> Result<(), &'static str> {
     }
 
     peer.send_message(new_interested());
-    peer.send_metadata_handshake_request();
+    peer.send_metadata_handshake_request()?;
 
     for _ in 0..10 {
         peer.read_message()
@@ -88,7 +89,7 @@ fn init_peer(peer: &mut Peer) -> Result<(), &'static str> {
 fn connect(endpoint: &str) -> Result<TcpStream, &'static str> {
     let server: SocketAddr = endpoint.parse().expect("Unable to parse socket address");
     let connect_timeout = Duration::from_secs(1);
-    TcpStream::connect_timeout(&server, connect_timeout).map_err(|_| "Error")
+    TcpStream::connect_timeout(&server, connect_timeout).map_err(|_| "Connection error")
 }
 
 // #[cfg(test)]

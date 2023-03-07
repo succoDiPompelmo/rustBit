@@ -33,21 +33,21 @@ pub struct Message {
 impl Message {
     // TODO: Maybe we could promote body to use a ContentType as parameter type, even though this function is used
     // during the read of a message.
-    pub fn new_raw(body: Vec<u8>, length: u32, id: u8) -> Message {
+    pub fn new_raw(body: Vec<u8>, length: u32, id: u8) -> Result<Message, &'static str> {
         let content = match id {
             2 => ContentType::Interested(InterestedMessage::from_bytes()),
             5 => ContentType::Bitfield(BitfieldMessage::from_bytes(&body)),
             7 | 6 => ContentType::Request(RequestMessage::from_bytes(&body)),
-            20 => ContentType::Extension(ExtensionMessage::from_bytes(&body)),
+            20 => ContentType::Extension(ExtensionMessage::from_bytes(&body)?),
             19 => ContentType::Handshake(HandshakeMessage::from_bytes(&body)),
             _ => ContentType::Nothing(),
         };
 
-        Message {
+        Ok(Message {
             id,
             length,
             content,
-        }
+        })
     }
 
     pub fn new(content: ContentType, length: u32, id: u8) -> Message {
@@ -156,7 +156,7 @@ pub fn new_metadata(extension_id: u8, index: usize) -> Message {
     let length = (data.len() + 1 + 1) as u32;
     let extension = ContentType::Extension(ExtensionMessage::from_bytes(
         &vec![vec![extension_id], data].concat(),
-    ));
+    ).unwrap());
     Message::new(extension, length, 20)
 }
 

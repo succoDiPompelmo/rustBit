@@ -77,10 +77,12 @@ fn peek_and_read(stream: &mut StreamInterface, body: &mut [u8], length: usize) -
     stream.peek(body).unwrap_or(0) == length && stream.read(body).unwrap_or(0) == length
 }
 
+// Here we should try to return a Result to signal the presence of errors
 pub fn read_stream(stream: &mut StreamInterface) -> Option<(Vec<u8>, u8, u32)> {
-    stream
-        .set_read_timeout(Some(Duration::from_millis(100)))
-        .unwrap();
+    if stream
+        .set_read_timeout(Some(Duration::from_millis(100))).is_err() {
+            return None
+        }
 
     if !has_messages(stream) {
         return None;
@@ -129,7 +131,7 @@ pub fn write_stream(stream: &mut StreamInterface, buffer: &[u8]) {
     }
 }
 
-pub fn send_metadata_handshake_request(stream: &mut StreamInterface) {
+pub fn send_metadata_handshake_request(stream: &mut StreamInterface) -> Result<(), &'static str> {
     let content = [
         &60_u32.to_be_bytes(),
         [0x14].as_slice(),
@@ -141,7 +143,6 @@ pub fn send_metadata_handshake_request(stream: &mut StreamInterface) {
     stream
         .write_all(&content)
         .map_err(|_| "Error in metadata request")
-        .unwrap();
 }
 
 #[cfg(test)]
