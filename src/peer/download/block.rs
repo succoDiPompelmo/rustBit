@@ -5,15 +5,6 @@ use crate::{
     peer::Peer,
 };
 
-fn get_block_size(
-    block_offset: usize,
-    torrent_length: usize,
-    piece_offset: usize,
-    block_size: usize,
-) -> usize {
-    cmp::min(torrent_length - (block_offset + piece_offset), block_size)
-}
-
 pub fn next_block(
     block_size: usize,
     piece_index: usize,
@@ -38,4 +29,13 @@ pub fn next_block(
 
 pub fn message_filter() -> fn(&Message) -> bool {
     Message::is_request_message
+}
+
+fn get_block_size(
+    block_offset: usize,
+    torrent_length: usize,
+    piece_offset: usize,
+    block_size: usize,
+) -> usize {
+    cmp::min(torrent_length - (block_offset + piece_offset), block_size)
 }

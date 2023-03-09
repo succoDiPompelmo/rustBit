@@ -27,11 +27,19 @@ pub fn download(peer: &mut Peer, download: Downloadable) -> Result<Vec<u8>, &'st
             let buffer = MessageBuffer::new(
                 block::message_filter(),
                 block::next_block(BLOCK_SIZE, piece_index, total_length, piece_length),
-                (0..piece_length).step_by(BLOCK_SIZE).len(),
+                (0..real_piece_length(piece_length, piece_index, total_length)).step_by(BLOCK_SIZE).len(),
             );
 
             execute(peer, buffer)
         }
+    }
+}
+
+fn real_piece_length(piece_length: usize, piece_index: usize, total_length: usize) -> usize {
+    if piece_length * (piece_index + 1) > total_length {
+        total_length - piece_length * piece_index
+    } else {
+        piece_length
     }
 }
 
@@ -99,14 +107,16 @@ mod test {
         // UNCHOKE MESSAGE
         s.push_bytes_to_read([0, 0, 0, 1, 1].as_slice());
         // PIECE MESSAGE
-        let message = vec![0, 0, 0, 14, 6, 0, 0, 0, 0, 0, 0, 0, 0, 5, 4, 3, 2, 1];
+        let body = vec![2; 12384];
+        let length = (12384 + 9) as u32;
+        let message = [length.to_be_bytes().to_vec(), vec![6, 0, 0, 0, 0, 0, 0, 0, 0], body.to_vec()].concat();
         s.push_bytes_to_read(&message);
 
         let e = StreamInterface::Mocked(s.clone());
 
         let mut peer = Peer::new(e, &[]);
 
-        let downloadable = Downloadable::Block((16384, 0, 16384));
-        assert_eq!(download(&mut peer, downloadable), Ok(vec![5, 4, 3, 2, 1]));
+        let downloadable = Downloadable::Block((16384 * 2, 1, 16384 * 2 + 12384));
+        assert_eq!(download(&mut peer, downloadable), Ok(body));
     }
 }
