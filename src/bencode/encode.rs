@@ -28,35 +28,34 @@ impl Encode for usize {
 
 impl Encode for Vec<u8> {
     fn encode(&self) -> Vec<u8> {
-        [
-            self.len().to_string().as_bytes().to_vec(),
-            ":".as_bytes().to_vec(),
-            self.to_vec(),
-        ]
-        .concat()
+        let encoded_len = self.len().to_string().as_bytes().to_vec();
+        [encoded_len, vec![b':'], self.to_vec()].concat()
     }
 }
 
 impl<T: Encode> Encode for Vec<T> {
     fn encode(&self) -> Vec<u8> {
-        let mut acc = "l".as_bytes().to_vec();
+        let mut acc = vec![b'l'];
         for el in self {
-            acc = [acc, el.encode()].concat();
+            acc.append(&mut el.encode());
         }
-        [acc, "e".as_bytes().to_vec()].concat()
+        acc.append(&mut vec![b'e']);
+        acc
     }
 }
 
 impl<T: Encode> Encode for HashMap<String, T> {
     fn encode(&self) -> Vec<u8> {
-        let mut keys: Vec<&String> = self.keys().collect();
-        keys.sort();
-        let mut acc = "d".as_bytes().to_vec();
-        for key in keys {
-            let value = self.get(key).unwrap();
-            acc = [acc, key.encode(), value.encode()].concat();
+        let mut items: Vec<_> = self.iter().collect();
+        items.sort_by(|a, b| a.0.cmp(b.0));
+
+        let mut acc = vec![b'd'];
+        for (key, value) in items {
+            acc.append(&mut key.encode());
+            acc.append(&mut value.encode());
         }
-        [acc, "e".as_bytes().to_vec()].concat()
+        acc.append(&mut vec![b'e']);
+        acc
     }
 }
 
@@ -70,17 +69,13 @@ impl<T: Encode> Encode for Option<T> {
 }
 
 pub fn encode_dict_entry(key: &str, value: &impl Encode) -> Vec<u8> {
-    match key {
-        "" => value.encode(),
-        _ => {
-            let encoded_value = value.encode();
-            if encoded_value.is_empty() {
-                vec![]
-            } else {
-                [key.encode(), value.encode()].concat()
-            }
-        }
+    let encoded_value = value.encode();
+
+    if encoded_value.is_empty() || key.is_empty() {
+        return vec![];
     }
+
+    [key.encode(), encoded_value].concat()
 }
 
 #[cfg(test)]
@@ -168,12 +163,14 @@ mod test {
     #[test]
     fn encode_hashmap() {
         let input = HashMap::from([
+            ("Zanzibar".to_owned(), "Valvola".to_owned()),
             ("Chiave".to_owned(), "Valore".to_owned()),
             ("Paolo".to_owned(), "Akunamatata".to_owned()),
         ]);
         let output = input.encode();
 
-        let expected_output = "d6:Chiave6:Valore5:Paolo11:Akunamatatae".as_bytes();
+        let expected_output =
+            "d6:Chiave6:Valore5:Paolo11:Akunamatata8:Zanzibar7:Valvolae".as_bytes();
         assert_eq!(output, expected_output);
     }
 
