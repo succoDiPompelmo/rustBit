@@ -114,13 +114,17 @@ impl Peer {
             ContentType::Handshake(handshake) => {
                 self.active = self.info_hash == handshake.get_info_hash()
             }
-            _ => info!("Peer {:?} message content type not managed for: {:?}", self.get_peer_id(), message),
+            _ => info!(
+                "Peer {:?} message content type not managed for: {:?}",
+                self.get_peer_id(),
+                message
+            ),
         }
     }
 
     pub fn read_message(&mut self) -> Option<Message> {
         if let Some((body, id, length)) = read_stream(&mut self.stream) {
-            return Message::new_raw(body, length, id).ok()
+            return Message::new_raw(body, length, id).ok();
         }
         None
     }

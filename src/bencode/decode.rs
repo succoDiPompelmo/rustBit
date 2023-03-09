@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::str;
 
-use log::{error};
+use log::error;
 
 use crate::bencode::metainfo::Metainfo;
 

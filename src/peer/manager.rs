@@ -26,11 +26,10 @@ pub fn peer_thread(
     info: Info,
     lock_piece_pool: Arc<Mutex<VecDeque<usize>>>,
 ) -> Result<(), &'static str> {
-
     // Avoid establish a tcp connection if there are no pieces to download
     if empty_pool(&lock_piece_pool) {
         info!("No more pieces to download");
-        return Ok(())
+        return Ok(());
     }
 
     let stream = connect(&endpoint)?;
@@ -43,21 +42,32 @@ pub fn peer_thread(
             piece
         } else {
             info!("No more pieces to download by {:?}", peer.get_peer_id());
-            return Ok(())
+            return Ok(());
         };
 
-        info!("Start download by {:?} piece {:?} from peer {:?}", peer.get_peer_id(), piece_idx, endpoint);
+        info!(
+            "Start download by {:?} piece {:?} from peer {:?}",
+            peer.get_peer_id(),
+            piece_idx,
+            endpoint
+        );
 
-        let block_download = Downloadable::Block((info.get_piece_length(), piece_idx, info.get_total_length()));
+        let block_download =
+            Downloadable::Block((info.get_piece_length(), piece_idx, info.get_total_length()));
         let piece = match download(&mut peer, block_download) {
             Ok(piece) => piece,
             Err(err) => {
                 insert_piece(&lock_piece_pool, piece_idx);
-                return Err(err)
+                return Err(err);
             }
         };
 
-        info!("Completed downloadby {:?} for piece {:?} from peer {:?}", peer.get_peer_id(), piece_idx, endpoint);
+        info!(
+            "Completed downloadby {:?} for piece {:?} from peer {:?}",
+            peer.get_peer_id(),
+            piece_idx,
+            endpoint
+        );
 
         if info.verify_piece(&piece, piece_idx) {
             write_piece(
@@ -66,8 +76,12 @@ pub fn peer_thread(
                 info.get_piece_length(),
                 info.get_files().unwrap(),
             );
-            info!("Completed write by {:?} to filesystem for piece {:?} from peer {:?}", peer.get_peer_id(), piece_idx, endpoint);
-
+            info!(
+                "Completed write by {:?} to filesystem for piece {:?} from peer {:?}",
+                peer.get_peer_id(),
+                piece_idx,
+                endpoint
+            );
         } else {
             insert_piece(&lock_piece_pool, piece_idx);
             return Err("Error during piece verification");
@@ -101,7 +115,7 @@ fn init_peer(peer: &mut Peer) -> Result<(), &'static str> {
 fn next_piece(lock_piece_pool: &Arc<Mutex<VecDeque<usize>>>) -> Option<usize> {
     match lock_piece_pool.lock() {
         Ok(mut piece_pool) => piece_pool.pop_front(),
-        Err(_) => None
+        Err(_) => None,
     }
 }
 
@@ -114,7 +128,7 @@ fn insert_piece(lock_piece_pool: &Arc<Mutex<VecDeque<usize>>>, piece: usize) {
 fn empty_pool(lock_piece_pool: &Arc<Mutex<VecDeque<usize>>>) -> bool {
     match lock_piece_pool.lock() {
         Ok(piece_pool) => piece_pool.is_empty(),
-        Err(_) => true
+        Err(_) => true,
     }
 }
 

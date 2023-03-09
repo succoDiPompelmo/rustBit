@@ -27,7 +27,9 @@ pub fn download(peer: &mut Peer, download: Downloadable) -> Result<Vec<u8>, &'st
             let buffer = MessageBuffer::new(
                 block::message_filter(),
                 block::next_block(BLOCK_SIZE, piece_index, total_length, piece_length),
-                (0..real_piece_length(piece_length, piece_index, total_length)).step_by(BLOCK_SIZE).len(),
+                (0..real_piece_length(piece_length, piece_index, total_length))
+                    .step_by(BLOCK_SIZE)
+                    .len(),
             );
 
             execute(peer, buffer)
@@ -109,7 +111,12 @@ mod test {
         // PIECE MESSAGE
         let body = vec![2; 12384];
         let length = (12384 + 9) as u32;
-        let message = [length.to_be_bytes().to_vec(), vec![6, 0, 0, 0, 0, 0, 0, 0, 0], body.to_vec()].concat();
+        let message = [
+            length.to_be_bytes().to_vec(),
+            vec![6, 0, 0, 0, 0, 0, 0, 0, 0],
+            body.to_vec(),
+        ]
+        .concat();
         s.push_bytes_to_read(&message);
 
         let e = StreamInterface::Mocked(s.clone());

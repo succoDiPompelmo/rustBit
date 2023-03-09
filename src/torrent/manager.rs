@@ -1,12 +1,13 @@
 use std::{
+    collections::VecDeque,
     fs::File,
     io::Read,
-    sync::{Arc, Mutex}, collections::VecDeque,
+    sync::{Arc, Mutex},
 };
 
 use rayon::prelude::*;
 
-use log::{info};
+use log::info;
 
 use crate::{
     common::thread_pool::ThreadPool,
@@ -23,7 +24,9 @@ impl TorrentManager {
     pub async fn init(torrent: Torrent) {
         let info = retrieve_info(&torrent.get_info_hash()).await;
 
-        let piece_count = (0..info.get_total_length()).step_by(info.get_piece_length()).len();
+        let piece_count = (0..info.get_total_length())
+            .step_by(info.get_piece_length())
+            .len();
         let mut piece_pool = VecDeque::new();
 
         for i in 0..piece_count {

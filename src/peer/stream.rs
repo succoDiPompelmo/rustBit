@@ -4,7 +4,7 @@ use std::net::TcpStream;
 use std::time::Duration;
 use std::{thread, time, vec};
 
-use log::{error};
+use log::error;
 
 use crate::common::mock_stream::MockStream;
 
@@ -80,9 +80,11 @@ fn peek_and_read(stream: &mut StreamInterface, body: &mut [u8], length: usize) -
 // Here we should try to return a Result to signal the presence of errors
 pub fn read_stream(stream: &mut StreamInterface) -> Option<(Vec<u8>, u8, u32)> {
     if stream
-        .set_read_timeout(Some(Duration::from_millis(100))).is_err() {
-            return None
-        }
+        .set_read_timeout(Some(Duration::from_millis(100)))
+        .is_err()
+    {
+        return None;
+    }
 
     if !has_messages(stream) {
         return None;

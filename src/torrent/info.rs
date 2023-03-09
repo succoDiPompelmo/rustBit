@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
 
-use log::{error};
+use log::error;
 
 use crate::bencode::decode::Decoder;
 use crate::bencode::encode::{encode_dict_entry, Encode};
@@ -38,9 +38,11 @@ impl Info {
     pub fn from_bytes(bytes: Vec<u8>) -> Result<Info, &'static str> {
         let decoded_info = match Decoder::init(bytes).decode() {
             Ok(value) => value,
-            Err(err) => return {
-                error!("{:?}", err.to_string());
-                Err("Error during decoding")
+            Err(err) => {
+                return {
+                    error!("{:?}", err.to_string());
+                    Err("Error during decoding")
+                }
             }
         };
         Info::from_metainfo(&decoded_info)

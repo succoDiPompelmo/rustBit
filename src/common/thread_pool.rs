@@ -5,7 +5,7 @@ use std::thread;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use log::{error};
+use log::error;
 
 pub struct ThreadPool {
     #[allow(dead_code)]
