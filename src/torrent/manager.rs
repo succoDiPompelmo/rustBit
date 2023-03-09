@@ -1,7 +1,7 @@
 use std::{
     fs::File,
     io::Read,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex}, collections::VecDeque,
 };
 
 use rayon::prelude::*;
@@ -23,15 +23,24 @@ impl TorrentManager {
     pub async fn init(torrent: Torrent) {
         let info = retrieve_info(&torrent.get_info_hash()).await;
 
-        let piece_counter = Arc::new(Mutex::new(0));
+        let piece_count = (0..info.get_total_length()).step_by(info.get_piece_length()).len();
+        let mut piece_pool = VecDeque::new();
+
+        for i in 0..piece_count {
+            piece_pool.push_back(i);
+        }
+
+        println!("{:?}, {:?}", piece_count, piece_pool);
+
+        let safe_piece_pool = Arc::new(Mutex::new(piece_pool));
         let pool = ThreadPool::new(3);
 
         loop {
             let endpoints = find_reachable_peers(&torrent.get_info_hash()).await;
             for endpoint in endpoints {
-                let counter_clone = piece_counter.clone();
+                let safe_piece_pool_clone = safe_piece_pool.clone();
                 let info_clone = info.clone();
-                pool.execute(move || peer_thread(endpoint, info_clone, counter_clone));
+                pool.execute(move || peer_thread(endpoint, info_clone, safe_piece_pool_clone));
             }
         }
     }

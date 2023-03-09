@@ -5,7 +5,7 @@ pub mod stream;
 
 use std::collections::HashMap;
 
-use log::{error, info};
+use log::info;
 
 use crate::common::generator::generate_peer_id;
 use crate::messages::{ContentType, Message};
