@@ -50,9 +50,7 @@ impl Info {
 
     pub fn from_metainfo(a: &Metainfo) -> Result<Info, &'static str> {
         let pieces = a
-            .get_value_from_dict("pieces")
-            .map_err(|_| "No pieces found")?
-            .get_bytes_content()
+            .get_bytes_from_dict("pieces")
             .map_err(|_| "Bytes error content")?;
         let piece_length = a
             .get_integer_from_dict("piece length")

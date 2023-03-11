@@ -39,7 +39,7 @@ pub enum MetainfoError {
 }
 
 impl Metainfo {
-    pub fn get_bytes_content(&self) -> Result<Vec<u8>, MetainfoError> {
+    fn get_bytes_content(&self) -> Result<Vec<u8>, MetainfoError> {
         match &self {
             Metainfo::String(value) => Ok(value.to_vec()),
             _ => Err(MetainfoError::BadMetainfoMatch(
@@ -96,6 +96,13 @@ impl Metainfo {
         }
     }
 
+    pub fn get_bytes_from_dict(&self, key: &str) -> Result<Vec<u8>, MetainfoError> {
+        match self.get_dict_content()?.get(key) {
+            Some(value) => value.get_bytes_content(),
+            _ => Err(MetainfoError::NoKeyInDictionary(key.to_string())),
+        }
+    }
+
     pub fn get_string_from_dict(&self, key: &str) -> Result<String, MetainfoError> {
         match self.get_dict_content()?.get(key) {
             Some(value) => value.get_string_content(),
@@ -123,13 +130,12 @@ mod test {
 
     use super::*;
 
-    // #[test]
-    // fn get_bytes_content_test() {
-    //     let input = Metainfo::String();
-    //     let output = input.get_bytes_content();
-    //     // let expected_output: Result<Vec<u8>, _> = Ok(r#"Ciao"#.as_bytes().to_vec());
-    //     assert_eq!(output, Ok(vec![0x00]));
-    // }
+    #[test]
+    fn get_bytes_content_test() {
+        let input = Metainfo::String(vec![b'C']);
+        let output = input.get_bytes_content();
+        assert_eq!(output, Ok(vec![b'C']));
+    }
 
     #[test]
     fn get_string_content_test() {
@@ -156,6 +162,18 @@ mod test {
         let input = Metainfo::List(list_content.clone());
         let output = input.get_list_content();
         let expected_output = Ok(&list_content);
+        assert_eq!(output, expected_output);
+    }
+
+    #[test]
+    fn get_bytes_from_dict_test() {
+        let input = Metainfo::Dictionary(HashMap::from([(
+            "key".to_owned(),
+            Metainfo::String(vec![b'v', b'a', b'l', b'u', b'e']),
+        )]));
+        let output = input.get_bytes_from_dict(&"key".to_owned());
+
+        let expected_output = Ok(vec![b'v', b'a', b'l', b'u', b'e']);
         assert_eq!(output, expected_output);
     }
 
