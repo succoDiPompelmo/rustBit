@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::bencode::encode::{encode_dict_entry, Encode};
-use crate::bencode::metainfo::Metainfo;
+use crate::bencode::metainfo::{Metainfo, MetainfoError};
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct File {
@@ -9,18 +9,20 @@ pub struct File {
     length: usize,
 }
 
+#[derive(thiserror::Error, Debug, Clone, PartialEq)]
+pub enum FileError {
+    #[error("Error handling metainfo")]
+    MetainfoError(#[from] MetainfoError),
+}
+
 impl File {
-    pub fn from_metainfo(file: &Metainfo) -> Result<File, &'static str> {
-        let file_length = file
-            .get_integer_from_dict("length")
-            .map_err(|_| "length annouce found")?;
-        let file_path_metainfo = file
-            .get_list_from_dict("path")
-            .map_err(|_| "No path found")?;
+    pub fn from_metainfo(file: &Metainfo) -> Result<File, FileError> {
+        let file_length = file.get_integer_from_dict("length")?;
+        let file_path_metainfo = file.get_list_from_dict("path")?;
         let mut file_path = Vec::new();
 
         for a in file_path_metainfo {
-            let path_value = a.get_string_content().map_err(|_| "No path value found")?;
+            let path_value = a.get_string_content()?;
             file_path.push(path_value);
         }
 
