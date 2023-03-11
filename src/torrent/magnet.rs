@@ -3,6 +3,12 @@ pub struct Magnet {
     info_hash: Vec<u8>,
 }
 
+#[derive(thiserror::Error, Debug, Clone, PartialEq)]
+pub enum MagnetError {
+    #[error("No magnet found")]
+    NoMagnet(),
+}
+
 impl Magnet {
     pub fn get_info_hash(&self) -> Vec<u8> {
         self.info_hash.to_vec()
@@ -50,9 +56,9 @@ fn parse_info_hash(magnet_uri: &[u8]) -> Vec<u8> {
     }
 }
 
-pub fn parse_magnet(magnet_uri: Vec<u8>) -> Result<Magnet, &'static str> {
+pub fn parse_magnet(magnet_uri: Vec<u8>) -> Result<Magnet, MagnetError> {
     if verify_info_hash(&magnet_uri) {
-        return Err("No magnet uri found");
+        return Err(MagnetError::NoMagnet());
     }
 
     let info_hash = parse_info_hash(&magnet_uri);
