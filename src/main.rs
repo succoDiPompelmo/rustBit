@@ -1,5 +1,4 @@
 mod bencode;
-mod bridge;
 mod common;
 mod integration_test;
 mod messages;
