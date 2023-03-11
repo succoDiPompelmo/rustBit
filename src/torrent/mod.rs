@@ -27,7 +27,7 @@ impl Torrent {
             .map(|el| announce_list_from_metainfo(el));
 
         let info_metainfo = a.get_value_from_dict("info").map_err(|_| "No info found")?;
-        let info = Info::from_metainfo(info_metainfo)?;
+        let info = Info::from_metainfo(info_metainfo).map_err(|_| "Error getting info data")?;
         let info_hash = info.compute_info_hash();
 
         Ok(Torrent {

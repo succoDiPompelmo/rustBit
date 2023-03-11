@@ -19,6 +19,7 @@ pub fn get_info(info_hash: &[u8], endpoint: String) -> Result<Info, &'static str
 
     init_peer(&mut peer)?;
     Info::from_bytes(download(&mut peer, Downloadable::Info)?)
+        .map_err(|_| "Error getting info data")
 }
 
 pub fn peer_thread(

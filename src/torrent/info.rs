@@ -3,9 +3,9 @@ use sha1::{Digest, Sha1};
 
 use log::error;
 
-use crate::bencode::decode::Decoder;
+use crate::bencode::decode::{Decoder, DecoderError};
 use crate::bencode::encode::{encode_dict_entry, Encode};
-use crate::bencode::metainfo::Metainfo;
+use crate::bencode::metainfo::{Metainfo, MetainfoError};
 use crate::torrent::file::File;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -15,6 +15,14 @@ pub struct Info {
     name: String,
     piece_length: usize,
     pieces: Vec<u8>,
+}
+
+#[derive(thiserror::Error, Debug, Clone, PartialEq)]
+pub enum InfoError {
+    #[error("Error handling metainfo")]
+    MetainfoError(#[from] MetainfoError),
+    #[error("Error during metainfo decoding")]
+    DecoderError(#[from] DecoderError),
 }
 
 impl Info {
@@ -35,29 +43,15 @@ impl Info {
         }
     }
 
-    pub fn from_bytes(bytes: Vec<u8>) -> Result<Info, &'static str> {
-        let decoded_info = match Decoder::init(bytes).decode() {
-            Ok(value) => value,
-            Err(err) => {
-                return {
-                    error!("{:?}", err.to_string());
-                    Err("Error during decoding")
-                }
-            }
-        };
+    pub fn from_bytes(bytes: Vec<u8>) -> Result<Info, InfoError> {
+        let decoded_info = Decoder::init(bytes).decode()?;
         Info::from_metainfo(&decoded_info)
     }
 
-    pub fn from_metainfo(a: &Metainfo) -> Result<Info, &'static str> {
-        let pieces = a
-            .get_bytes_from_dict("pieces")
-            .map_err(|_| "Bytes error content")?;
-        let piece_length = a
-            .get_integer_from_dict("piece length")
-            .map_err(|_| "No piece length found")?;
-        let name = a
-            .get_string_from_dict("name")
-            .map_err(|_| "No name found")?;
+    pub fn from_metainfo(a: &Metainfo) -> Result<Info, InfoError> {
+        let pieces = a.get_bytes_from_dict("pieces")?;
+        let piece_length = a.get_integer_from_dict("piece length")?;
+        let name = a.get_string_from_dict("name")?;
         let length = a.get_integer_from_dict("length").ok();
 
         let files = a

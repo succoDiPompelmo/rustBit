@@ -10,7 +10,7 @@ pub struct Decoder {
     contents: Vec<u8>,
 }
 
-#[derive(thiserror::Error, Debug, Clone)]
+#[derive(thiserror::Error, Debug, Clone, PartialEq)]
 pub enum DecoderError {
     #[error("Bad number from string at position: {0}")]
     BadNumberFromString(usize),
