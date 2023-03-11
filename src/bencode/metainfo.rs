@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-use std::str;
+use std::str::Utf8Error;
+use std::{fmt, str};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Metainfo {
@@ -10,69 +11,109 @@ pub enum Metainfo {
     Nothing(),
 }
 
+const METAINFO_INTEGER: &str = "Integer";
+const METAINFO_LIST: &str = "List";
+const METAINFO_STRING: &str = "String";
+const METAINFO_DICTIONARY: &str = "Dictionary";
+
+impl fmt::Display for Metainfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Metainfo::Integer(_) => write!(f, "{METAINFO_INTEGER}"),
+            Metainfo::List(_) => write!(f, "{METAINFO_LIST}"),
+            Metainfo::String(_) => write!(f, "{METAINFO_STRING}"),
+            Metainfo::Dictionary(_) => write!(f, "{METAINFO_DICTIONARY}"),
+            Metainfo::Nothing() => write!(f, "Nothing"),
+        }
+    }
+}
+
+#[derive(thiserror::Error, Debug, Clone, PartialEq)]
+pub enum MetainfoError {
+    #[error("Expected {0} type but found {1}")]
+    BadMetainfoMatch(&'static str, String),
+    #[error("Utf8 string conversion failed")]
+    Utf8ConversionError(#[from] Utf8Error),
+    #[error("No key {0} found in dictionary")]
+    NoKeyInDictionary(String),
+}
+
 impl Metainfo {
-    pub fn get_bytes_content(&self) -> Result<Vec<u8>, &'static str> {
+    pub fn get_bytes_content(&self) -> Result<Vec<u8>, MetainfoError> {
         match &self {
             Metainfo::String(value) => Ok(value.to_vec()),
-            _ => Err("No bytes metainfo found"),
+            _ => Err(MetainfoError::BadMetainfoMatch(
+                METAINFO_STRING,
+                self.to_string(),
+            )),
         }
     }
 
-    pub fn get_string_content(&self) -> Result<String, &'static str> {
+    pub fn get_string_content(&self) -> Result<String, MetainfoError> {
         match &self {
-            Metainfo::String(value) => str::from_utf8(value)
-                .map(|el| el.to_string())
-                .map_err(|_| "Error during UTF-8 string conversion"),
-            _ => Err("No string metainfo found"),
+            Metainfo::String(value) => Ok(str::from_utf8(value)?.to_string()),
+            _ => Err(MetainfoError::BadMetainfoMatch(
+                METAINFO_STRING,
+                self.to_string(),
+            )),
         }
     }
 
-    pub fn get_integer_content(&self) -> Result<usize, &'static str> {
+    pub fn get_integer_content(&self) -> Result<usize, MetainfoError> {
         match &self {
             Metainfo::Integer(value) => Ok(*value),
-            _ => Err("No numeric metainfo found"),
+            _ => Err(MetainfoError::BadMetainfoMatch(
+                METAINFO_INTEGER,
+                self.to_string(),
+            )),
         }
     }
 
-    pub fn get_list_content(&self) -> Result<&Vec<Metainfo>, &'static str> {
+    pub fn get_list_content(&self) -> Result<&Vec<Metainfo>, MetainfoError> {
         match &self {
             Metainfo::List(value) => Ok(value),
-            _ => Err("No list metainfo found"),
+            _ => Err(MetainfoError::BadMetainfoMatch(
+                METAINFO_LIST,
+                self.to_string(),
+            )),
         }
     }
 
-    pub fn get_dict_content(&self) -> Result<&HashMap<String, Metainfo>, &'static str> {
+    pub fn get_dict_content(&self) -> Result<&HashMap<String, Metainfo>, MetainfoError> {
         match &self {
             Metainfo::Dictionary(value) => Ok(value),
-            _ => Err("No dict metainfo found"),
+            _ => Err(MetainfoError::BadMetainfoMatch(
+                METAINFO_DICTIONARY,
+                self.to_string(),
+            )),
         }
     }
 
-    pub fn get_value_from_dict(&self, key: &str) -> Result<&Metainfo, &'static str> {
+    pub fn get_value_from_dict(&self, key: &str) -> Result<&Metainfo, MetainfoError> {
         match self.get_dict_content()?.get(key) {
             Some(value) => Ok(value),
-            _ => Err("No key found in dict"),
+            _ => Err(MetainfoError::NoKeyInDictionary(key.to_string())),
         }
     }
 
-    pub fn get_string_from_dict(&self, key: &str) -> Result<String, &'static str> {
+    pub fn get_string_from_dict(&self, key: &str) -> Result<String, MetainfoError> {
         match self.get_dict_content()?.get(key) {
             Some(value) => value.get_string_content(),
-            _ => Err("No key found in dict"),
+            _ => Err(MetainfoError::NoKeyInDictionary(key.to_string())),
         }
     }
 
-    pub fn get_integer_from_dict(&self, key: &str) -> Result<usize, &'static str> {
+    pub fn get_integer_from_dict(&self, key: &str) -> Result<usize, MetainfoError> {
         match self.get_dict_content()?.get(key) {
-            Some(Metainfo::Integer(value)) => Ok(*value),
-            _ => Err("No key found in dict"),
+            Some(value) => value.get_integer_content(),
+            _ => Err(MetainfoError::NoKeyInDictionary(key.to_string())),
         }
     }
 
-    pub fn get_list_from_dict(&self, key: &str) -> Result<&Vec<Metainfo>, &'static str> {
+    pub fn get_list_from_dict(&self, key: &str) -> Result<&Vec<Metainfo>, MetainfoError> {
         match self.get_dict_content()?.get(key) {
-            Some(Metainfo::List(value)) => Ok(value),
-            _ => Err("No key found in dict"),
+            Some(value) => value.get_list_content(),
+            _ => Err(MetainfoError::NoKeyInDictionary(key.to_string())),
         }
     }
 }
@@ -81,6 +122,14 @@ impl Metainfo {
 mod test {
 
     use super::*;
+
+    // #[test]
+    // fn get_bytes_content_test() {
+    //     let input = Metainfo::String();
+    //     let output = input.get_bytes_content();
+    //     // let expected_output: Result<Vec<u8>, _> = Ok(r#"Ciao"#.as_bytes().to_vec());
+    //     assert_eq!(output, Ok(vec![0x00]));
+    // }
 
     #[test]
     fn get_string_content_test() {

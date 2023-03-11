@@ -49,9 +49,17 @@ impl Info {
     }
 
     pub fn from_metainfo(a: &Metainfo) -> Result<Info, &'static str> {
-        let pieces = a.get_value_from_dict("pieces")?.get_bytes_content()?;
-        let piece_length = a.get_integer_from_dict("piece length")?;
-        let name = a.get_string_from_dict("name")?;
+        let pieces = a
+            .get_value_from_dict("pieces")
+            .map_err(|_| "No pieces found")?
+            .get_bytes_content()
+            .map_err(|_| "Bytes error content")?;
+        let piece_length = a
+            .get_integer_from_dict("piece length")
+            .map_err(|_| "No piece length found")?;
+        let name = a
+            .get_string_from_dict("name")
+            .map_err(|_| "No name found")?;
         let length = a.get_integer_from_dict("length").ok();
 
         let files = a

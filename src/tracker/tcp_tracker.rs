@@ -35,7 +35,11 @@ pub fn get_tracker(
 }
 
 fn from_metainfo(metainfo: Metainfo) -> Result<Vec<PeerConnectionInfo>, &'static str> {
-    let peers_list = metainfo.get_value_from_dict("peers")?.get_bytes_content()?;
+    let peers_list = metainfo
+        .get_value_from_dict("peers")
+        .map_err(|_| "No value found in dictionary")?
+        .get_bytes_content()
+        .map_err(|_| "Bytes content error")?;
 
     Ok(Tracker::peers_info_from_bytes(&peers_list))
 }

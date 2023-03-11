@@ -18,13 +18,15 @@ pub struct Torrent {
 
 impl Torrent {
     pub fn from_metainfo(a: &Metainfo) -> Result<Torrent, &'static str> {
-        let announce = a.get_string_from_dict("announce")?;
+        let announce = a
+            .get_string_from_dict("announce")
+            .map_err(|_| "No annouce found")?;
         let announce_list = a
             .get_list_from_dict("announce-list")
             .ok()
             .map(|el| announce_list_from_metainfo(el));
 
-        let info_metainfo = a.get_value_from_dict("info")?;
+        let info_metainfo = a.get_value_from_dict("info").map_err(|_| "No info found")?;
         let info = Info::from_metainfo(info_metainfo)?;
         let info_hash = info.compute_info_hash();
 
