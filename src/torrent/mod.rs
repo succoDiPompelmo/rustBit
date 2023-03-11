@@ -4,9 +4,12 @@ pub mod magnet;
 pub mod manager;
 pub mod writer;
 
-use crate::bencode::metainfo::Metainfo;
+use crate::bencode::decode::DecoderError;
+use crate::bencode::metainfo::{Metainfo, MetainfoError};
 use crate::torrent::info::Info;
 use crate::torrent::magnet::Magnet;
+
+use self::info::InfoError;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Torrent {
@@ -16,18 +19,26 @@ pub struct Torrent {
     info_hash: Vec<u8>,
 }
 
+#[derive(thiserror::Error, Debug, Clone, PartialEq)]
+pub enum TorrentError {
+    #[error("Error handling metainfo")]
+    Metainfo(#[from] MetainfoError),
+    #[error("Error during metainfo decoding")]
+    Decoder(#[from] DecoderError),
+    #[error("Error during info decoding")]
+    Info(#[from] InfoError),
+}
+
 impl Torrent {
-    pub fn from_metainfo(a: &Metainfo) -> Result<Torrent, &'static str> {
-        let announce = a
-            .get_string_from_dict("announce")
-            .map_err(|_| "No annouce found")?;
+    pub fn from_metainfo(a: &Metainfo) -> Result<Torrent, TorrentError> {
+        let announce = a.get_string_from_dict("announce")?;
         let announce_list = a
             .get_list_from_dict("announce-list")
             .ok()
             .map(|el| announce_list_from_metainfo(el));
 
-        let info_metainfo = a.get_value_from_dict("info").map_err(|_| "No info found")?;
-        let info = Info::from_metainfo(info_metainfo).map_err(|_| "Error getting info data")?;
+        let info_metainfo = a.get_value_from_dict("info")?;
+        let info = Info::from_metainfo(info_metainfo)?;
         let info_hash = info.compute_info_hash();
 
         Ok(Torrent {
@@ -38,13 +49,13 @@ impl Torrent {
         })
     }
 
-    pub fn from_info_hash(magnet: &Magnet) -> Result<Torrent, &'static str> {
-        Ok(Torrent {
+    pub fn from_info_hash(magnet: &Magnet) -> Torrent {
+        Torrent {
             announce: "".to_owned(),
             announce_list: None,
             info: None,
             info_hash: magnet.get_info_hash(),
-        })
+        }
     }
 
     pub fn get_info_hash(&self) -> Vec<u8> {

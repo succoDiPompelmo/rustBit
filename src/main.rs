@@ -31,7 +31,7 @@ async fn add_magnet(torrent_source: String) -> HttpResponse {
         Torrent::from_metainfo(&decoded_data).unwrap()
     } else {
         let magnet = magnet::parse_magnet(torrent_source.as_bytes().to_vec()).unwrap();
-        Torrent::from_info_hash(&magnet).unwrap()
+        Torrent::from_info_hash(&magnet)
     };
 
     actix_web::rt::spawn(Tracker::find_peers(torrent.get_info_hash()));
