@@ -51,8 +51,9 @@ impl TorrentManager {
 
 async fn retrieve_info(info_hash: &[u8]) -> Info {
     let filename = urlencoding::encode_binary(info_hash).into_owned();
+    let file_path = format!("./downloads/{filename}");
 
-    if let Ok(mut info_file) = File::open(&filename) {
+    if let Ok(mut info_file) = File::open(&file_path) {
         info!("Torrent info from file: {:?}", filename);
         let mut info_buffer = "".to_string();
         info_file.read_to_string(&mut info_buffer).unwrap();
@@ -65,7 +66,7 @@ async fn retrieve_info(info_hash: &[u8]) -> Info {
         for endpoint in endpoints {
             if let Ok(info) = get_info(info_hash, endpoint) {
                 info!("Torrent info from peer");
-                serde_json::to_writer(&File::create(&filename).unwrap(), &info).unwrap();
+                serde_json::to_writer(&File::create(&file_path).unwrap(), &info).unwrap();
                 return info;
             }
         }
