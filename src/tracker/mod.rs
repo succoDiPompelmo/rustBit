@@ -1,123 +1,92 @@
-pub mod tcp_tracker;
-pub mod udp_tracker;
+mod peer_endpoint;
+mod tcp_tracker;
+mod tracked_peer;
+mod udp_tracker;
 
-use std::net::{SocketAddr, TcpStream};
 use std::str;
-use std::time::Duration;
 
 use crate::common::file::read_file;
 use crate::common::generator::generate_peer_id;
 
-use sqlx::postgres::PgConnection;
-use sqlx::Connection;
+use rayon::prelude::*;
+use url::Url;
+
+use self::{
+    peer_endpoint::PeerEndpoint,
+    tcp_tracker::TcpTrackerError,
+    tracked_peer::{all_endpoints_by_hash, insert_tracked_peers},
+    udp_tracker::UdpTrackerError,
+};
 
 #[derive(Debug)]
 pub struct Tracker {}
 
-#[derive(Debug, Clone)]
-pub struct PeerConnectionInfo {
-    pub ip: String,
-    pub port: u16,
-}
-
-#[derive(Debug, Clone, sqlx::FromRow)]
-pub struct TrackedPeer {
-    endpoint: String,
-}
-
-impl TrackedPeer {
-    pub fn endpoint(&self) -> String {
-        self.endpoint.to_string()
-    }
-
-    pub fn is_reachable(&self) -> bool {
-        let server: SocketAddr = self.endpoint().parse().unwrap();
-        let connect_timeout = Duration::from_millis(300);
-        TcpStream::connect_timeout(&server, connect_timeout).is_ok()
-    }
-}
-
-impl PeerConnectionInfo {
-    pub fn get_peer_endpoint(&self) -> String {
-        format!("{}:{}", self.ip, self.port)
-    }
+#[derive(thiserror::Error, Debug, Clone, PartialEq)]
+pub enum TrackerError {
+    #[error("Error handling udp tracker")]
+    TcpTracker(#[from] TcpTrackerError),
+    #[error("Error handling tcp tracker")]
+    UdpTracker(#[from] UdpTrackerError),
+    #[error("Protocol {0} not supported")]
+    ProtocolNotSupported(String),
 }
 
 impl Tracker {
-    pub async fn get_tracked_peers(info_hash: Vec<u8>) -> Option<Vec<TrackedPeer>> {
-        let mut db = PgConnection::connect("postgres://postgres:password@localhost/rust_bit")
+    pub async fn find_reachable_peers(info_hash: &[u8]) -> Vec<String> {
+        all_endpoints_by_hash(info_hash.to_vec())
             .await
-            .unwrap();
-
-        let result = sqlx::query_as::<_, TrackedPeer>(
-            "SELECT endpoint FROM tracked_peers WHERE info_hash = $1",
-        )
-        .bind(info_hash)
-        .fetch_all(&mut db)
-        .await;
-
-        result.ok()
+            .into_par_iter()
+            .filter(|el| PeerEndpoint::is_reachable(el))
+            .collect::<Vec<String>>()
     }
 
     pub async fn find_peers(info_hash: Vec<u8>) {
-        let mut db = PgConnection::connect("postgres://postgres:password@localhost/rust_bit")
-            .await
-            .unwrap();
-
         loop {
-            let peer_id = &generate_peer_id();
-            let trackers_hostname = list_trackers();
-
-            for tracker_hostname in trackers_hostname {
-                let tracker = match &tracker_hostname[0..3] {
-                    "htt" => tcp_tracker::get_tracker(&info_hash, peer_id, &tracker_hostname),
-                    "udp" => udp_tracker::get_tracker(&info_hash, peer_id, &tracker_hostname),
-                    _ => Err("Protocol not supported"),
-                };
-
-                if let Ok(peers) = tracker {
-                    for peer in &peers {
-                        let query = "INSERT INTO tracked_peers
-                        (info_hash, endpoint)
-                        VALUES ($1, $2) ON CONFLICT (info_hash, endpoint) DO NOTHING";
-
-                        sqlx::query(query)
-                            .bind(info_hash.to_vec())
-                            .bind(peer.get_peer_endpoint())
-                            .execute(&mut db)
-                            .await
-                            .unwrap();
-                    }
+            for tracker_url in list_trackers() {
+                if let Ok(peers) = get_peers_by_tracker(tracker_url, &info_hash) {
+                    insert_tracked_peers(peers, &info_hash).await;
                 }
             }
         }
     }
+}
 
-    pub fn peers_info_from_bytes(bytes: &[u8]) -> Vec<PeerConnectionInfo> {
-        let mut peers_info = Vec::new();
+fn get_peers_by_tracker(tracker: Url, info_hash: &[u8]) -> Result<Vec<PeerEndpoint>, TrackerError> {
+    let peer_id = &generate_peer_id();
 
-        for chunk in bytes.chunks_exact(6) {
-            let ip = format!(
-                "{:?}.{:?}.{:?}.{:?}",
-                chunk[0], chunk[1], chunk[2], chunk[3]
-            );
-            let port = ((chunk[4] as u16) << 8) | (chunk[5] as u16);
+    // A tracker response struct with a get_peers method bound to a trait could be useful here ?
+    let response = match tracker.scheme() {
+        "http" => tcp_tracker::call(info_hash, peer_id, tracker)?,
+        "udp" => udp_tracker::call(info_hash, peer_id, tracker)?,
+        scheme => Err(TrackerError::ProtocolNotSupported(scheme.to_string()))?,
+    };
 
-            peers_info.push(PeerConnectionInfo { ip, port })
-        }
+    Ok(PeerEndpoint::from_bytes(&response))
+}
 
-        peers_info
+fn list_trackers() -> Vec<Url> {
+    str::from_utf8(read_file("tracker_list.txt").as_slice())
+        .unwrap()
+        .to_owned()
+        .split('\n')
+        .map(|tracker| Url::parse(tracker).unwrap())
+        .collect::<Vec<Url>>()
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_list_trackers() {
+        let trackers = list_trackers();
+
+        assert!(!trackers.is_empty());
+
+        let first_tracker = trackers.first().unwrap();
+
+        assert_eq!(first_tracker.scheme(), "udp");
+        assert_eq!(first_tracker.host_str().unwrap(), "107.150.14.110");
+        assert_eq!(first_tracker.as_str(), "udp://107.150.14.110:6969/announce");
     }
 }
-
-fn list_trackers() -> Vec<String> {
-    let tracker_list = str::from_utf8(read_file("tracker_list.txt").as_slice())
-        .unwrap()
-        .to_owned();
-    tracker_list
-        .split('\n')
-        .map(|tracker| tracker.to_owned())
-        .collect::<Vec<String>>()
-}
-
-mod test {}

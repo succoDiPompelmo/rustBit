@@ -5,8 +5,6 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use rayon::prelude::*;
-
 use log::info;
 
 use crate::{
@@ -39,7 +37,7 @@ impl TorrentManager {
         let pool = ThreadPool::new(3);
 
         loop {
-            let endpoints = find_reachable_peers(&torrent.get_info_hash()).await;
+            let endpoints = Tracker::find_reachable_peers(&torrent.get_info_hash()).await;
             for endpoint in endpoints {
                 let safe_piece_pool_clone = safe_piece_pool.clone();
                 let info_clone = info.clone();
@@ -62,7 +60,7 @@ async fn retrieve_info(info_hash: &[u8]) -> Info {
     }
 
     loop {
-        let endpoints = find_reachable_peers(info_hash).await;
+        let endpoints = Tracker::find_reachable_peers(info_hash).await;
         for endpoint in endpoints {
             if let Ok(info) = get_info(info_hash, endpoint) {
                 info!("Torrent info from peer");
@@ -70,18 +68,5 @@ async fn retrieve_info(info_hash: &[u8]) -> Info {
                 return info;
             }
         }
-    }
-}
-
-async fn find_reachable_peers(info_hash: &[u8]) -> Vec<String> {
-    if let Some(peers) = Tracker::get_tracked_peers(info_hash.to_vec()).await {
-        peers
-            .to_vec()
-            .into_par_iter()
-            .filter(|el| el.is_reachable())
-            .map(|e| e.endpoint())
-            .collect()
-    } else {
-        vec![]
     }
 }
