@@ -22,26 +22,22 @@ pub enum TcpTrackerError {
 pub fn call(info_hash: &[u8], peer_id: &str, tracker: Url) -> Result<Vec<u8>, TcpTrackerError> {
     let url_encoded_info_hash = urlencoding::encode_binary(info_hash).into_owned();
 
-    let tracker_url = format!(
+    let url = format!(
         "{}?info_hash={}&peer_id={}",
         tracker.as_str(),
         url_encoded_info_hash,
         peer_id
     );
 
-    let result = get_peers(tracker_url)?;
-    let tracker_metainfo = Decoder::init(result).decode()?;
-    Ok(tracker_metainfo.get_bytes_from_dict("peers")?)
-}
-
-fn get_peers(url: String) -> Result<Vec<u8>, TcpTrackerError> {
-    let respone = call_tracker_for_peers(url)?;
+    let response = call_tracker_for_peers(url)?;
     let mut bytes = vec![];
-    respone
+    response
         .into_reader()
         .read_to_end(&mut bytes)
         .map_err(|_| TcpTrackerError::BufferReading())?;
-    Ok(bytes)
+
+    let tracker_metainfo = Decoder::init(bytes).decode()?;
+    Ok(tracker_metainfo.get_bytes_from_dict("peers")?)
 }
 
 fn call_tracker_for_peers(url: String) -> Result<ureq::Response, TcpTrackerError> {
@@ -54,4 +50,31 @@ fn call_tracker_for_peers(url: String) -> Result<ureq::Response, TcpTrackerError
         .set("Host", "192.168.1.2")
         .call()
         .map_err(|_| TcpTrackerError::Connection(url))
+}
+
+#[cfg(test)]
+mod test {
+
+    use super::*;
+
+    use httpmock::prelude::*;
+
+    #[test]
+    fn test_call() {
+        let server = MockServer::start();
+
+        let url = Url::parse(&server.url("/announce")).unwrap();
+
+        let mock = server.mock(|when, then| {
+            when.method(GET).path("/announce");
+            then.status(200)
+                .header("content-type", "text/html; charset=UTF-8")
+                .body("d5:peers3:baue");
+        });
+
+        let result = call(&[0x00], "peer_id", url);
+
+        mock.assert();
+        assert_eq!(result, Ok(vec![98, 97, 117]))
+    }
 }
