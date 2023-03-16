@@ -5,6 +5,10 @@ use url::Url;
 
 #[derive(thiserror::Error, Debug, Clone, PartialEq)]
 pub enum UdpTrackerError {
+    #[error("Tracker missing post")]
+    PostMissing(),
+    #[error("Tracker missing hostname")]
+    HostnameMissing(),
     #[error("Error setting the timeout")]
     SetTimeoutError(),
     #[error("Wrong response size less than 26 bytes")]
@@ -15,20 +19,20 @@ pub enum UdpTrackerError {
     RecieveError(),
     #[error("Error in sending packet through socket")]
     SendError(),
-    // #[error("Error during metainfo decoding")]
-    // DecoderError(#[from] DecoderError),
-    // #[error("Error during connection to tracker {0}")]
-    // ConnectionError(String),
-    // #[error("Error during reading of buffer")]
-    // BufferReadingError(),
 }
 
 pub fn call(info_hash: &[u8], peer_id: &str, tracker_url: Url) -> Result<Vec<u8>, UdpTrackerError> {
     let socket = UdpSocket::bind("0.0.0.0:34222").expect("couldn't bind to address");
-    let tracker_hostname = tracker_url.host_str().unwrap();
+    let tracker_hostname = format!(
+        "{}:{}",
+        tracker_url
+            .host_str()
+            .ok_or(UdpTrackerError::HostnameMissing())?,
+        tracker_url.port().ok_or(UdpTrackerError::PostMissing())?
+    );
 
     let transaction_id: &[u8] = &[0x00, 0x01, 0x19, 0x9e];
-    let connection_id = connect_to_tracker(transaction_id, &socket, tracker_hostname)?;
+    let connection_id = connect_to_tracker(transaction_id, &socket, &tracker_hostname)?;
 
     let message = &make_announce_message(
         transaction_id,
@@ -36,7 +40,7 @@ pub fn call(info_hash: &[u8], peer_id: &str, tracker_url: Url) -> Result<Vec<u8>
         peer_id.as_bytes(),
         info_hash,
     );
-    send_upd_packet(&socket, message, tracker_hostname)?;
+    send_upd_packet(&socket, message, &tracker_hostname)?;
 
     socket
         .set_read_timeout(Some(Duration::new(3, 0)))
@@ -61,8 +65,11 @@ fn connect_to_tracker(
 
     let mut buf: [u8; 16] = [0x00; 16];
 
-    for _ in 1..5 {
-        send_upd_packet(socket, message, tracker_hostname)?;
+    for retry in 1..5 {
+        if send_upd_packet(socket, message, tracker_hostname).is_err() {
+            log::error!("Send udp connect packet failed, retry number {}", retry);
+        };
+
         if read_upd_packet(socket, &mut buf).is_ok() {
             return Ok(buf[8..].to_vec());
         }

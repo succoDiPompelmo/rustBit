@@ -12,27 +12,29 @@ pub enum Downloadable {
     Block((usize, usize, usize)),
 }
 
-pub fn download(peer: &mut Peer, download: Downloadable) -> Result<Vec<u8>, &'static str> {
-    match download {
-        Downloadable::Info => {
-            let buffer = MessageBuffer::new(
-                info::message_filter(),
-                info::next_piece(),
-                (0..peer.get_metadata_size()).step_by(INFO_PIECE_SIZE).len(),
-            );
+impl Downloadable {
+    pub fn download(&self, peer: &mut Peer) -> Result<Vec<u8>, &'static str> {
+        match self {
+            Downloadable::Info => {
+                let buffer = MessageBuffer::new(
+                    info::message_filter(),
+                    info::next_piece(),
+                    (0..peer.get_metadata_size()).step_by(INFO_PIECE_SIZE).len(),
+                );
 
-            execute(peer, buffer)
-        }
-        Downloadable::Block((piece_length, piece_index, total_length)) => {
-            let buffer = MessageBuffer::new(
-                block::message_filter(),
-                block::next_block(BLOCK_SIZE, piece_index, total_length, piece_length),
-                (0..real_piece_length(piece_length, piece_index, total_length))
-                    .step_by(BLOCK_SIZE)
-                    .len(),
-            );
+                execute(peer, buffer)
+            }
+            Downloadable::Block((piece_length, piece_index, total_length)) => {
+                let buffer = MessageBuffer::new(
+                    block::message_filter(),
+                    block::next_block(BLOCK_SIZE, *piece_index, *total_length, *piece_length),
+                    (0..real_piece_length(*piece_length, *piece_index, *total_length))
+                        .step_by(BLOCK_SIZE)
+                        .len(),
+                );
 
-            execute(peer, buffer)
+                execute(peer, buffer)
+            }
         }
     }
 }
@@ -100,7 +102,7 @@ mod test {
         peer.add_extension("ut_metadata".to_owned(), 1);
 
         let downloadable = Downloadable::Info;
-        assert_eq!(download(&mut peer, downloadable), Ok(vec![1, 2, 3, 4, 5]));
+        assert_eq!(downloadable.download(&mut peer), Ok(vec![1, 2, 3, 4, 5]));
     }
 
     #[test]
@@ -124,6 +126,6 @@ mod test {
         let mut peer = Peer::new(e, &[]);
 
         let downloadable = Downloadable::Block((16384 * 2, 1, 16384 * 2 + 12384));
-        assert_eq!(download(&mut peer, downloadable), Ok(body));
+        assert_eq!(downloadable.download(&mut peer), Ok(body));
     }
 }

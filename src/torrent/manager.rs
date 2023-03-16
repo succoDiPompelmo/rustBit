@@ -1,15 +1,13 @@
-use std::{
-    collections::VecDeque,
-    fs::File,
-    io::Read,
-    sync::{Arc, Mutex},
-};
+use std::{fs::File, io::Read};
 
 use log::info;
 
 use crate::{
     common::thread_pool::ThreadPool,
-    peer::manager::{get_info, peer_thread},
+    peer::{
+        manager::{get_info, peer_thread},
+        piece_pool::PiecePool,
+    },
     torrent::Torrent,
     tracker::Tracker,
 };
@@ -25,21 +23,15 @@ impl TorrentManager {
         let piece_count = (0..info.get_total_length())
             .step_by(info.get_piece_length())
             .len();
-        let mut piece_pool = VecDeque::new();
 
-        for i in 0..piece_count {
-            piece_pool.push_back(i);
-        }
+        let piece_pool = PiecePool::new(piece_count);
 
-        println!("{:?}, {:?}", piece_count, piece_pool);
-
-        let safe_piece_pool = Arc::new(Mutex::new(piece_pool));
         let pool = ThreadPool::new(3);
 
         loop {
             let endpoints = Tracker::find_reachable_peers(&torrent.get_info_hash()).await;
             for endpoint in endpoints {
-                let safe_piece_pool_clone = safe_piece_pool.clone();
+                let safe_piece_pool_clone = piece_pool.clone();
                 let info_clone = info.clone();
                 pool.execute(move || peer_thread(endpoint, info_clone, safe_piece_pool_clone));
             }

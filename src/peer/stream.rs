@@ -46,6 +46,19 @@ impl io::Write for StreamInterface {
 }
 
 impl StreamInterface {
+    pub fn connect(endpoint: &str, mocked: bool) -> Result<Self, &'static str> {
+        if mocked {
+            return Ok(StreamInterface::Mocked(MockStream::new()));
+        }
+
+        let server: std::net::SocketAddr =
+            endpoint.parse().expect("Unable to parse socket address");
+        let connect_timeout = Duration::from_secs(1);
+        let stream =
+            TcpStream::connect_timeout(&server, connect_timeout).map_err(|_| "Connection error")?;
+        Ok(StreamInterface::Tcp(stream))
+    }
+
     fn peek(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         match *self {
             StreamInterface::Mocked(ref mut s) => s.peek(buf),

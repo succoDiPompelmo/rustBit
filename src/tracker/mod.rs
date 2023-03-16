@@ -23,9 +23,9 @@ pub struct Tracker {}
 
 #[derive(thiserror::Error, Debug, Clone, PartialEq)]
 pub enum TrackerError {
-    #[error("Error handling udp tracker")]
+    #[error(transparent)]
     TcpTracker(#[from] TcpTrackerError),
-    #[error("Error handling tcp tracker")]
+    #[error(transparent)]
     UdpTracker(#[from] UdpTrackerError),
     #[error("Protocol {0} not supported")]
     ProtocolNotSupported(String),
@@ -43,8 +43,9 @@ impl Tracker {
     pub async fn find_peers(info_hash: Vec<u8>) {
         loop {
             for tracker_url in list_trackers() {
-                if let Ok(peers) = get_peers_by_tracker(tracker_url, &info_hash) {
-                    insert_tracked_peers(peers, &info_hash).await;
+                match get_peers_by_tracker(tracker_url, &info_hash) {
+                    Ok(peers) => insert_tracked_peers(peers, &info_hash).await,
+                    Err(err) => log::error!("Tracker: {}", err.to_string()),
                 }
             }
         }
@@ -66,10 +67,10 @@ fn get_peers_by_tracker(tracker: Url, info_hash: &[u8]) -> Result<Vec<PeerEndpoi
 
 fn list_trackers() -> Vec<Url> {
     str::from_utf8(read_file("tracker_list.txt").as_slice())
-        .unwrap()
+        .unwrap_or("")
         .to_owned()
         .split('\n')
-        .map(|tracker| Url::parse(tracker).unwrap())
+        .filter_map(|tracker| Url::parse(tracker).ok())
         .collect::<Vec<Url>>()
 }
 

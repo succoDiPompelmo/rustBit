@@ -1,7 +1,8 @@
-pub mod buffer;
-pub mod download;
+mod buffer;
+mod download;
 pub mod manager;
-pub mod stream;
+pub mod piece_pool;
+mod stream;
 
 use std::collections::HashMap;
 
