@@ -12,8 +12,16 @@ pub enum Downloadable {
     Block((usize, usize, usize)),
 }
 
+#[derive(thiserror::Error, Debug, Clone, PartialEq)]
+pub enum DownloadableError {
+    #[error("Choked Peer")]
+    ChokedPeer(),
+    #[error("Download idle for too long")]
+    Idle(),
+}
+
 impl Downloadable {
-    pub fn download(&self, peer: &mut Peer) -> Result<Vec<u8>, &'static str> {
+    pub fn download(&self, peer: &mut Peer) -> Result<Vec<u8>, DownloadableError> {
         match self {
             Downloadable::Info => {
                 let buffer = MessageBuffer::new(
@@ -47,7 +55,7 @@ fn real_piece_length(piece_length: usize, piece_index: usize, total_length: usiz
     }
 }
 
-fn execute<F>(peer: &mut Peer, mut buffer: MessageBuffer<F>) -> Result<Vec<u8>, &'static str>
+fn execute<F>(peer: &mut Peer, mut buffer: MessageBuffer<F>) -> Result<Vec<u8>, DownloadableError>
 where
     F: FnMut(&mut Peer, usize),
 {
@@ -65,7 +73,7 @@ where
         };
 
         if peer.is_choked() {
-            return Err("Chocked peer");
+            return Err(DownloadableError::ChokedPeer());
         }
 
         buffer.request_next_message(peer);
@@ -73,7 +81,7 @@ where
         idle_count += 1;
 
         if idle_count > 10 {
-            return Err("Peer thread killed for being idle fot too long");
+            return Err(DownloadableError::Idle());
         }
     }
 }

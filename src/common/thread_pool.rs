@@ -7,6 +7,8 @@ use std::sync::Mutex;
 
 use log::error;
 
+use crate::peer::manager::PeerManagerError;
+
 pub struct ThreadPool {
     #[allow(dead_code)]
     workers: Vec<Worker>,
@@ -14,11 +16,11 @@ pub struct ThreadPool {
 }
 
 trait FnBox {
-    fn call_box(self: Box<Self>) -> Result<(), &'static str>;
+    fn call_box(self: Box<Self>) -> Result<(), PeerManagerError>;
 }
 
-impl<F: FnOnce() -> Result<(), &'static str>> FnBox for F {
-    fn call_box(self: Box<F>) -> Result<(), &'static str> {
+impl<F: FnOnce() -> Result<(), PeerManagerError>> FnBox for F {
+    fn call_box(self: Box<F>) -> Result<(), PeerManagerError> {
         (*self)()
     }
 }
@@ -50,7 +52,7 @@ impl ThreadPool {
 
     pub fn execute<F>(&self, f: F)
     where
-        F: FnOnce() -> Result<(), &'static str> + Send + 'static,
+        F: FnOnce() -> Result<(), PeerManagerError> + Send + 'static,
     {
         let job = Box::new(f);
 
@@ -73,7 +75,7 @@ impl Worker {
                 Ok(_) => (),
                 Err(err) => error!(
                     "Worker {:?} got an error during job execution: {:?}",
-                    id, err
+                    id, err.to_string()
                 ),
             }
         });

@@ -2,21 +2,44 @@ use log::info;
 
 use crate::messages::{new_handshake, new_interested};
 use crate::peer::Peer;
-use crate::torrent::info::Info;
+use crate::torrent::info::{Info, InfoError};
 use crate::torrent::writer::write_piece;
 
-use super::download::Downloadable;
+use super::download::{Downloadable, DownloadableError};
 use super::piece_pool::PiecePool;
-use super::stream::StreamInterface;
+use super::stream::{StreamInterface, StreamError};
 
-pub fn get_info(info_hash: &[u8], endpoint: String) -> Result<Info, &'static str> {
+#[derive(thiserror::Error, Debug, Clone, PartialEq)]
+pub enum PeerManagerError {
+    #[error("Handshake error with peer")]
+    Handshake(),
+    #[error("Handshake metadata error with peer")]
+    HandshakeMetadata(),
+    #[error("Peer not ready")]
+    PeerNotReady(),
+    #[error("No more pieces to download")]
+    NoMorePieces(),
+    #[error("Unsuccessfull piece download")]
+    PieceDownloadFailure(),
+    #[error("Unsuccessfull piece verification")]
+    PieceVerificationFailure(),
+    #[error(transparent)]
+    Stream(#[from] StreamError),
+    #[error(transparent)]
+    Info(#[from] InfoError),
+    #[error(transparent)]
+    Download(#[from] DownloadableError),
+}
+
+pub fn get_info(info_hash: &[u8], endpoint: String) -> Result<Info, PeerManagerError> {
     let stream = StreamInterface::connect(&endpoint, false)?;
     let mut peer = Peer::new(stream, info_hash);
 
     init_peer(&mut peer)?;
     let info = Downloadable::Info.download(&mut peer)?;
 
-    Info::from_bytes(info).map_err(|_| "Error getting info data")
+    let info = Info::from_bytes(info)?;
+    Ok(info)
 }
 
 struct Context {
@@ -25,7 +48,7 @@ struct Context {
     pub piece_idx: usize,
 }
 
-pub fn peer_thread(endpoint: String, info: Info, pool: PiecePool) -> Result<(), &'static str> {
+pub fn peer_thread(endpoint: String, info: Info, pool: PiecePool) -> Result<(), PeerManagerError> {
     // Avoid establish a tcp connection if there are no pieces to download
     if pool.is_emtpy() {
         info!("No more pieces to download");
@@ -38,10 +61,13 @@ pub fn peer_thread(endpoint: String, info: Info, pool: PiecePool) -> Result<(), 
     init_peer(&mut peer)?;
 
     loop {
-        let piece_idx = pool.pop().ok_or_else(|| {
-            info!("No more pieces to download");
-            "No more pieces"
-        })?;
+        let piece_idx = match pool.pop() {
+            Some(piece_idx) => piece_idx,
+            None => {
+                info!("No more pieces to download");
+                return Err(PeerManagerError::NoMorePieces())
+            }
+        };
 
         let ctx = Context {
             peer_id: peer.get_peer_id(),
@@ -54,9 +80,9 @@ pub fn peer_thread(endpoint: String, info: Info, pool: PiecePool) -> Result<(), 
             Downloadable::Block((info.get_piece_length(), piece_idx, info.get_total_length()));
         let piece = match block.download(&mut peer) {
             Ok(piece) => piece,
-            Err(err) => {
+            Err(_err) => {
                 pool.insert(piece_idx);
-                return Err(err);
+                return Err(PeerManagerError::PieceDownloadFailure());
             }
         };
 
@@ -71,22 +97,22 @@ pub fn peer_thread(endpoint: String, info: Info, pool: PiecePool) -> Result<(), 
             track_progress(PieceEventType::CompleteWrite(), &ctx);
         } else {
             pool.insert(piece_idx);
-            return Err("Error during piece verification");
+            return Err(PeerManagerError::PieceVerificationFailure());
         }
     }
 }
 
-fn init_peer(peer: &mut Peer) -> Result<(), &'static str> {
+fn init_peer(peer: &mut Peer) -> Result<(), PeerManagerError> {
     peer.send_message(new_handshake(&peer.get_info_hash(), &peer.get_peer_id()));
     peer.read_message()
         .map_or((), |msg| peer.apply_message(&msg));
 
     if !peer.is_active() {
-        return Err("Handshake failed");
+        return Err(PeerManagerError::Handshake());
     }
 
     peer.send_message(new_interested());
-    peer.send_metadata_handshake_request()?;
+    peer.send_metadata_handshake_request().map_err(|_| PeerManagerError::HandshakeMetadata())?;
 
     for _ in 0..10 {
         peer.read_message()
@@ -96,7 +122,7 @@ fn init_peer(peer: &mut Peer) -> Result<(), &'static str> {
             return Ok(());
         }
     }
-    Err("Peer not ready")
+    Err(PeerManagerError::PeerNotReady())
 }
 
 pub enum PieceEventType {

@@ -45,8 +45,14 @@ impl io::Write for StreamInterface {
     }
 }
 
+#[derive(thiserror::Error, Debug, Clone, PartialEq)]
+pub enum StreamError {
+    #[error("Error setting a connection")]
+    EstablishConnection(),
+}
+
 impl StreamInterface {
-    pub fn connect(endpoint: &str, mocked: bool) -> Result<Self, &'static str> {
+    pub fn connect(endpoint: &str, mocked: bool) -> Result<Self, StreamError> {
         if mocked {
             return Ok(StreamInterface::Mocked(MockStream::new()));
         }
@@ -55,7 +61,7 @@ impl StreamInterface {
             endpoint.parse().expect("Unable to parse socket address");
         let connect_timeout = Duration::from_secs(1);
         let stream =
-            TcpStream::connect_timeout(&server, connect_timeout).map_err(|_| "Connection error")?;
+            TcpStream::connect_timeout(&server, connect_timeout).map_err(|_| StreamError::EstablishConnection())?;
         Ok(StreamInterface::Tcp(stream))
     }
 
