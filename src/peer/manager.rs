@@ -1,9 +1,10 @@
 use log::info;
 
+use crate::common::thread_pool::ThreadPool;
 use crate::messages::{new_handshake, new_interested};
 use crate::peer::Peer;
 use crate::torrent::info::{Info, InfoError};
-use crate::torrent::writer::write_piece;
+use crate::torrent::writer::write;
 
 use super::download::{Downloadable, DownloadableError};
 use super::piece_pool::PiecePool;
@@ -19,8 +20,8 @@ pub enum PeerManagerError {
     PeerNotReady(),
     #[error("No more pieces to download")]
     NoMorePieces(),
-    #[error("Unsuccessfull piece download")]
-    PieceDownloadFailure(),
+    #[error("Unsuccessfull piece download: {0}")]
+    PieceDownloadFailure(String),
     #[error("Unsuccessfull piece verification")]
     PieceVerificationFailure(),
     #[error(transparent)]
@@ -48,7 +49,22 @@ struct Context {
     pub piece_idx: usize,
 }
 
-pub fn peer_thread(endpoint: String, info: Info, pool: PiecePool) -> Result<(), PeerManagerError> {
+impl Context {
+    fn new(peer_id: String, piece_idx: usize, endpoint: String) -> Self {
+        Context {
+            peer_id,
+            piece_idx,
+            endpoint,
+        }
+    }
+}
+
+pub fn peer_thread(
+    endpoint: String,
+    info: Info,
+    pool: PiecePool,
+    writers: ThreadPool,
+) -> Result<(), PeerManagerError> {
     // Avoid establish a tcp connection if there are no pieces to download
     if pool.is_emtpy() {
         return Err(PeerManagerError::NoMorePieces());
@@ -58,36 +74,31 @@ pub fn peer_thread(endpoint: String, info: Info, pool: PiecePool) -> Result<(), 
     let mut peer = Peer::new(stream, &info.compute_info_hash());
     init_peer(&mut peer)?;
 
+    let piece_length = info.get_piece_length();
+
     loop {
         let piece_idx = pool.pop().ok_or(PeerManagerError::NoMorePieces())?;
+        let ctx = Context::new(peer.get_peer_id(), piece_idx, endpoint.to_owned());
 
-        let ctx = Context {
-            peer_id: peer.get_peer_id(),
-            piece_idx,
-            endpoint: endpoint.to_owned(),
-        };
         track_progress(PieceEventType::StartDownload(), &ctx);
 
-        let block =
-            Downloadable::Block((info.get_piece_length(), piece_idx, info.get_total_length()));
-        let piece = block.download(&mut peer).map_err(|_| {
+        let block = Downloadable::Block((piece_length, piece_idx, info.get_total_length()));
+        let piece = block.download(&mut peer).map_err(|err| {
             pool.insert(piece_idx);
-            PeerManagerError::PieceDownloadFailure()
+            PeerManagerError::PieceDownloadFailure(err.to_string())
         })?;
-
         track_progress(PieceEventType::CompleteDownload(), &ctx);
-        if info.verify_piece(&piece, piece_idx) {
-            write_piece(
-                piece,
-                piece_idx,
-                info.get_piece_length(),
-                info.get_files().unwrap(),
-            );
-            track_progress(PieceEventType::CompleteWrite(), &ctx);
-        } else {
+
+        if !info.verify_piece(&piece, piece_idx) {
             pool.insert(piece_idx);
             return Err(PeerManagerError::PieceVerificationFailure());
         }
+
+        let files = info.get_files()?;
+        writers.execute(move || {
+            write(piece, piece_idx, files.to_vec(), piece_length)?;
+            Ok(())
+        });
     }
 }
 
@@ -118,7 +129,6 @@ fn init_peer(peer: &mut Peer) -> Result<(), PeerManagerError> {
 pub enum PieceEventType {
     StartDownload(),
     CompleteDownload(),
-    CompleteWrite(),
 }
 
 fn track_progress(event_type: PieceEventType, ctx: &Context) {
@@ -129,10 +139,6 @@ fn track_progress(event_type: PieceEventType, ctx: &Context) {
         ),
         PieceEventType::CompleteDownload() => info!(
             "Completed downloadby {:?} for piece {:?} from peer {:?}",
-            ctx.peer_id, ctx.piece_idx, ctx.endpoint
-        ),
-        PieceEventType::CompleteWrite() => info!(
-            "Completed write by {:?} to filesystem for piece {:?} from peer {:?}",
             ctx.peer_id, ctx.piece_idx, ctx.endpoint
         ),
     }

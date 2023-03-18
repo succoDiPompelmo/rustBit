@@ -8,7 +8,17 @@ use std::sync::Mutex;
 use log::error;
 
 use crate::peer::manager::PeerManagerError;
+use crate::torrent::writer::WriterError;
 
+#[derive(thiserror::Error, Debug, Clone, PartialEq)]
+pub enum ThreadPoolError {
+    #[error(transparent)]
+    PeerManager(#[from] PeerManagerError),
+    #[error(transparent)]
+    Writer(#[from] WriterError),
+}
+
+#[derive(Clone)]
 pub struct ThreadPool {
     #[allow(dead_code)]
     workers: Vec<Worker>,
@@ -16,11 +26,11 @@ pub struct ThreadPool {
 }
 
 trait FnBox {
-    fn call_box(self: Box<Self>) -> Result<(), PeerManagerError>;
+    fn call_box(self: Box<Self>) -> Result<(), ThreadPoolError>;
 }
 
-impl<F: FnOnce() -> Result<(), PeerManagerError>> FnBox for F {
-    fn call_box(self: Box<F>) -> Result<(), PeerManagerError> {
+impl<F: FnOnce() -> Result<(), ThreadPoolError>> FnBox for F {
+    fn call_box(self: Box<F>) -> Result<(), ThreadPoolError> {
         (*self)()
     }
 }
@@ -52,7 +62,7 @@ impl ThreadPool {
 
     pub fn execute<F>(&self, f: F)
     where
-        F: FnOnce() -> Result<(), PeerManagerError> + Send + 'static,
+        F: FnOnce() -> Result<(), ThreadPoolError> + Send + 'static,
     {
         let job = Box::new(f);
 
@@ -60,9 +70,10 @@ impl ThreadPool {
     }
 }
 
+#[derive(Clone)]
 #[allow(dead_code)]
 struct Worker {
-    id: usize
+    id: usize,
 }
 
 impl Worker {

@@ -23,6 +23,8 @@ pub enum InfoError {
     MetainfoError(#[from] MetainfoError),
     #[error("Error during metainfo decoding")]
     DecoderError(#[from] DecoderError),
+    #[error("No file length specified")]
+    NoFileLenght(),
 }
 
 impl Info {
@@ -90,11 +92,12 @@ impl Info {
         }
     }
 
-    pub fn get_files(&self) -> Result<Vec<File>, &'static str> {
+    pub fn get_files(&self) -> Result<Vec<File>, InfoError> {
         match &self.files {
             Some(files) => Ok(files.to_vec()),
             None => {
-                let file = File::new(vec![self.name.to_owned()], self.length.unwrap());
+                let length = self.length.ok_or(InfoError::NoFileLenght())?;
+                let file = File::new(vec![self.name.to_owned()], length);
                 Ok(vec![file])
             }
         }

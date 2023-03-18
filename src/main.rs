@@ -57,6 +57,7 @@ async fn main() -> std::io::Result<()> {
         })
         .target(env_logger::Target::Pipe(target))
         .filter(None, LevelFilter::Debug)
+        .filter_module("sqlx::query", log::LevelFilter::Off)
         .init();
 
     HttpServer::new(|| App::new().service(add_magnet))

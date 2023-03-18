@@ -2,10 +2,24 @@ use std::cmp;
 use std::fs;
 use std::os::unix::prelude::FileExt;
 
-use crate::peer::piece_pool::PiecePool;
 use crate::torrent::file::File;
 
-use super::info::Info;
+#[derive(thiserror::Error, Debug, Clone, PartialEq)]
+pub enum WriterError {}
+
+pub fn write(
+    piece: Vec<u8>,
+    idx: usize,
+    files: Vec<File>,
+    piece_length: usize,
+) -> Result<(), WriterError> {
+    get_file_writers(files, piece, idx, piece_length)
+        .iter()
+        .for_each(|writer| writer.write_to_filesystem());
+
+    log::info!("Completed write to filesystem for piece {:?}", idx);
+    Ok(())
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct FileWriter {
@@ -13,34 +27,6 @@ pub struct FileWriter {
     start: usize,
     end: usize,
     piece: Vec<u8>,
-}
-
-pub fn write(piece: Vec<u8>, idx: usize, info: Info, pool: PiecePool) -> Result<(), &'static str> {
-    if info.verify_piece(&piece, idx) {
-        get_file_writers(
-            info.get_files().unwrap(),
-            piece,
-            idx,
-            info.get_piece_length(),
-        )
-        .iter()
-        .for_each(|writer| writer.write_to_filesystem());
-        Ok(())
-    } else {
-        pool.insert(idx);
-        return Err("Ciao");
-    }
-}
-
-pub fn write_piece(
-    piece: Vec<u8>,
-    piece_idx: usize,
-    piece_length: usize,
-    torrent_files: Vec<File>,
-) {
-    get_file_writers(torrent_files, piece, piece_idx, piece_length)
-        .iter()
-        .for_each(|writer| writer.write_to_filesystem());
 }
 
 impl FileWriter {
@@ -131,10 +117,10 @@ impl FileParser {
 pub fn get_file_writers(
     files: Vec<File>,
     piece: Vec<u8>,
-    piece_index: usize,
-    torrent_piece_length: usize,
+    idx: usize,
+    piece_length: usize,
 ) -> Vec<FileWriter> {
-    let mut file_parser = FileParser::new(piece.len(), piece_index, torrent_piece_length);
+    let mut file_parser = FileParser::new(piece.len(), idx, piece_length);
     let mut files_to_write = vec![];
 
     for file in files {

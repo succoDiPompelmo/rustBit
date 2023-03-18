@@ -26,14 +26,19 @@ impl TorrentManager {
 
         let piece_pool = PiecePool::new(piece_count);
 
-        let pool = ThreadPool::new(3);
+        let pool = ThreadPool::new(1);
+        let writers = ThreadPool::new(1);
 
         loop {
             let endpoints = Tracker::find_reachable_peers(&torrent.get_info_hash()).await;
             for endpoint in endpoints {
                 let safe_piece_pool_clone = piece_pool.clone();
                 let info_clone = info.clone();
-                pool.execute(move || peer_thread(endpoint, info_clone, safe_piece_pool_clone));
+                let writers_clone = writers.clone();
+                pool.execute(move || {
+                    peer_thread(endpoint, info_clone, safe_piece_pool_clone, writers_clone)?;
+                    Ok(())
+                });
             }
         }
     }
@@ -54,10 +59,15 @@ async fn retrieve_info(info_hash: &[u8]) -> Info {
     loop {
         let endpoints = Tracker::find_reachable_peers(info_hash).await;
         for endpoint in endpoints {
-            if let Ok(info) = get_info(info_hash, endpoint) {
-                info!("Torrent info from peer");
-                serde_json::to_writer(&File::create(&file_path).unwrap(), &info).unwrap();
-                return info;
+            match get_info(info_hash, endpoint) {
+                Ok(info) => {
+                    info!("Torrent info from peer");
+                    serde_json::to_writer(&File::create(&file_path).unwrap(), &info).unwrap();
+                    return info;
+                }
+                Err(err) => {
+                    log::error!("Info error: {}", err.to_string());
+                }
             }
         }
     }
