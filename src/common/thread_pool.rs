@@ -75,7 +75,8 @@ impl Worker {
                 Ok(_) => (),
                 Err(err) => error!(
                     "Worker {:?} got an error during job execution: {:?}",
-                    id, err.to_string()
+                    id,
+                    err.to_string()
                 ),
             }
         });

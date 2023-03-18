@@ -60,8 +60,8 @@ impl StreamInterface {
         let server: std::net::SocketAddr =
             endpoint.parse().expect("Unable to parse socket address");
         let connect_timeout = Duration::from_secs(1);
-        let stream =
-            TcpStream::connect_timeout(&server, connect_timeout).map_err(|_| StreamError::EstablishConnection())?;
+        let stream = TcpStream::connect_timeout(&server, connect_timeout)
+            .map_err(|_| StreamError::EstablishConnection())?;
         Ok(StreamInterface::Tcp(stream))
     }
 
