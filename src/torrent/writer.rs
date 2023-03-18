@@ -2,7 +2,10 @@ use std::cmp;
 use std::fs;
 use std::os::unix::prelude::FileExt;
 
+use crate::peer::piece_pool::PiecePool;
 use crate::torrent::file::File;
+
+use super::info::Info;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct FileWriter {
@@ -10,6 +13,23 @@ pub struct FileWriter {
     start: usize,
     end: usize,
     piece: Vec<u8>,
+}
+
+pub fn write(piece: Vec<u8>, idx: usize, info: Info, pool: PiecePool) -> Result<(), &'static str> {
+    if info.verify_piece(&piece, idx) {
+        get_file_writers(
+            info.get_files().unwrap(),
+            piece,
+            idx,
+            info.get_piece_length(),
+        )
+        .iter()
+        .for_each(|writer| writer.write_to_filesystem());
+        Ok(())
+    } else {
+        pool.insert(idx);
+        return Err("Ciao");
+    }
 }
 
 pub fn write_piece(

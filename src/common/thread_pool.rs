@@ -62,13 +62,12 @@ impl ThreadPool {
 
 #[allow(dead_code)]
 struct Worker {
-    id: usize,
-    thread: thread::JoinHandle<()>,
+    id: usize
 }
 
 impl Worker {
     fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
-        let thread = thread::spawn(move || loop {
+        thread::spawn(move || loop {
             let job = receiver.lock().unwrap().recv().unwrap();
 
             match job.call_box() {
@@ -81,6 +80,6 @@ impl Worker {
             }
         });
 
-        Worker { id, thread }
+        Worker { id }
     }
 }
