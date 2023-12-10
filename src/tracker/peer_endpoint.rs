@@ -1,5 +1,6 @@
 use std::{net::TcpStream, time::Duration};
 
+#[derive(Debug)]
 pub struct PeerEndpoint(String, u16);
 
 impl PeerEndpoint {
@@ -21,9 +22,13 @@ impl PeerEndpoint {
 
     pub fn is_reachable(endpoint: &str) -> bool {
         match endpoint.parse() {
-            Ok(socket) => TcpStream::connect_timeout(&socket, Duration::from_millis(300)).is_ok(),
+            Ok(socket) => TcpStream::connect_timeout(&socket, Duration::from_millis(50)).is_ok(),
             Err(_) => false,
         }
+    }
+
+    pub fn endpoint(&self) -> String {
+        format!("{}:{}", self.ip(), self.port())
     }
 
     pub fn ip(&self) -> String {

@@ -19,7 +19,7 @@ pub enum TcpTrackerError {
     BufferReading(),
 }
 
-pub fn call(info_hash: &[u8], peer_id: &str, tracker: Url) -> Result<Vec<u8>, TcpTrackerError> {
+pub fn call(info_hash: &[u8], peer_id: &str, tracker: &Url) -> Result<Vec<u8>, TcpTrackerError> {
     let url_encoded_info_hash = urlencoding::encode_binary(info_hash).into_owned();
 
     let url = format!(
@@ -72,7 +72,7 @@ mod test {
                 .body("d5:peers3:baue");
         });
 
-        let result = call(&[0x00], "peer_id", url);
+        let result = call(&[0x00], "peer_id", &url);
 
         mock.assert();
         assert_eq!(result, Ok(vec![98, 97, 117]))

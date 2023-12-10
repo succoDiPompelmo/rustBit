@@ -1,4 +1,4 @@
-mod peer_endpoint;
+pub mod peer_endpoint;
 mod tcp_tracker;
 mod tracked_peer;
 mod udp_tracker;
@@ -43,7 +43,7 @@ impl Tracker {
     pub async fn find_peers(info_hash: Vec<u8>) {
         loop {
             for tracker_url in list_trackers() {
-                match get_peers_by_tracker(tracker_url, &info_hash) {
+                match get_peers_by_tracker(&tracker_url, &info_hash) {
                     Ok(peers) => insert_tracked_peers(peers, &info_hash).await,
                     Err(err) => log::error!("Tracker: {}", err.to_string()),
                 }
@@ -52,7 +52,10 @@ impl Tracker {
     }
 }
 
-fn get_peers_by_tracker(tracker: Url, info_hash: &[u8]) -> Result<Vec<PeerEndpoint>, TrackerError> {
+pub fn get_peers_by_tracker(
+    tracker: &Url,
+    info_hash: &[u8],
+) -> Result<Vec<PeerEndpoint>, TrackerError> {
     let peer_id = &generate_peer_id();
 
     // A tracker response struct with a get_peers method bound to a trait could be useful here ?

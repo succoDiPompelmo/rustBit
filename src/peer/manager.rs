@@ -102,6 +102,34 @@ pub fn peer_thread(
     }
 }
 
+pub fn download(
+    endpoint: String,
+    info: &Info,
+    piece_idx: usize,
+) -> Result<Vec<u8>, PeerManagerError> {
+    let stream = StreamInterface::connect(&endpoint, false)?;
+    let mut peer = Peer::new(stream, &info.compute_info_hash());
+    init_peer(&mut peer)?;
+
+    let piece_length = info.get_piece_length();
+
+    let ctx = Context::new(peer.get_peer_id(), piece_idx, endpoint.to_owned());
+
+    track_progress(PieceEventType::StartDownload(), &ctx);
+
+    let block = Downloadable::Block((piece_length, piece_idx, info.get_total_length()));
+    let piece = block
+        .download(&mut peer)
+        .map_err(|err| PeerManagerError::PieceDownloadFailure(err.to_string()))?;
+    track_progress(PieceEventType::CompleteDownload(), &ctx);
+
+    if !info.verify_piece(&piece, piece_idx) {
+        return Err(PeerManagerError::PieceVerificationFailure());
+    }
+
+    Ok(piece)
+}
+
 fn init_peer(peer: &mut Peer) -> Result<(), PeerManagerError> {
     peer.send_message(new_handshake(&peer.get_info_hash(), &peer.get_peer_id()));
     peer.read_message()

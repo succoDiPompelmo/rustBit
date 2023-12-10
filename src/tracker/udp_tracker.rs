@@ -21,7 +21,11 @@ pub enum UdpTrackerError {
     SendError(),
 }
 
-pub fn call(info_hash: &[u8], peer_id: &str, tracker_url: Url) -> Result<Vec<u8>, UdpTrackerError> {
+pub fn call(
+    info_hash: &[u8],
+    peer_id: &str,
+    tracker_url: &Url,
+) -> Result<Vec<u8>, UdpTrackerError> {
     let socket = UdpSocket::bind("0.0.0.0:34222").expect("couldn't bind to address");
     let tracker_hostname = format!(
         "{}:{}",

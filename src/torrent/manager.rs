@@ -44,7 +44,7 @@ impl TorrentManager {
     }
 }
 
-async fn retrieve_info(info_hash: &[u8]) -> Info {
+pub async fn retrieve_info(info_hash: &[u8]) -> Info {
     let filename = urlencoding::encode_binary(info_hash).into_owned();
     let file_path = format!("./downloads/{filename}");
 

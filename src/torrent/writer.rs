@@ -1,6 +1,6 @@
 use std::cmp;
 use std::fs;
-use std::os::unix::prelude::FileExt;
+use std::os::windows::prelude::FileExt;
 
 use crate::torrent::file::File;
 
@@ -53,7 +53,7 @@ impl FileWriter {
             .open(path)
             .unwrap();
 
-        file.write_at(&self.piece, self.start as u64).unwrap();
+        file.seek_write(&self.piece, self.start as u64).unwrap();
     }
 }
 
