@@ -1,6 +1,6 @@
 use std::{net::TcpStream, time::Duration};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct PeerEndpoint(String, u16);
 
 impl PeerEndpoint {

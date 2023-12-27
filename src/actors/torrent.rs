@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use actix::prelude::*;
 
 use crate::{
@@ -20,7 +22,8 @@ pub struct TorrentActor {
     connections_pool: Addr<ConnectionActor>,
     pub info: Option<Info>,
     pub info_hash: Vec<u8>,
-    pub peers: Vec<PeerEndpoint>,
+    peers: Vec<Peer>,
+    peers_evo: HashMap<String, Peer>,
     piece_available_pool: Option<PiecePool>,
     writers_pool: Addr<WriterActor>,
 }
@@ -35,6 +38,7 @@ impl TorrentActor {
             info: None,
             info_hash,
             peers: vec![],
+            peers_evo: HashMap::new(),
             piece_available_pool: None,
             writers_pool: write_addr,
         }
@@ -69,11 +73,16 @@ impl Handler<PieceDownloadSuccessfull> for TorrentActor {
         };
         self.writers_pool.do_send(msg_ready);
 
+        let endpoint = msg.endpoint;
+        Peer::update_sucess(&mut self.peers_evo, endpoint.clone());
+
+        println!("{:?}", self.peers_evo);
+
         if let Some(piece_idx) = self.piece_available_pool.as_mut().unwrap().pop() {
             let msg = PieceRequested {
                 piece_idx,
                 info: self.info.as_ref().unwrap().clone(),
-                endpoint: msg.endpoint,
+                endpoint: endpoint,
                 torrent_actor: ctx.address(),
             };
             self.connections_pool.do_send(msg);
@@ -95,9 +104,10 @@ impl Handler<PieceDownloadFailed> for TorrentActor {
         println!("Failed piece {:?}", msg.piece_idx);
 
         let endpoint = msg.endpoint.as_str();
+        Peer::update_failed(&mut self.peers_evo, endpoint.to_string());
 
         for peer in &self.peers {
-            if peer.endpoint() != endpoint {
+            if peer.endpoint.endpoint() != endpoint {
                 if let Some(piece_idx) = self.piece_available_pool.as_mut().unwrap().pop() {
                     let msg = PieceRequested {
                         piece_idx,
@@ -132,7 +142,7 @@ impl Handler<PeerFound> for TorrentActor {
                     self.piece_available_pool = Some(PiecePool::new(piece_count));
 
                     self.info = Some(info);
-                    self.peers.push(msg.peer);
+                    self.peers.push(Peer::new(msg.peer));
                 };
             }
             Some(info) => {
@@ -147,10 +157,39 @@ impl Handler<PeerFound> for TorrentActor {
                     self.connections_pool.do_send(msg);
                 }
 
-                self.peers.push(msg.peer);
+                let endpoint = msg.peer.endpoint();
+                let peer = Peer::new(msg.peer);
+
+                self.peers.push(peer.clone());
+                self.peers_evo.insert(endpoint, peer.clone());
             }
         }
 
         Ok(true)
+    }
+}
+
+#[derive(Clone, Debug)]
+struct Peer {
+    endpoint: PeerEndpoint,
+    piece_downloaded: usize,
+    piece_failed: usize
+}
+
+impl Peer {
+    fn new(endpoint: PeerEndpoint) -> Peer {
+        Peer { endpoint, piece_downloaded: 0, piece_failed: 0 }
+    }
+
+    fn update_failed(pool: &mut HashMap<String, Peer>, endpoint: String) {
+        if let Some(data) = pool.get_mut(&endpoint) {
+            data.piece_failed += 1;
+        }
+    }
+
+    fn update_sucess(pool: &mut HashMap<String, Peer>, endpoint: String) {
+        if let Some(data) = pool.get_mut(&endpoint) {
+            data.piece_downloaded += 1;
+        }
     }
 }
