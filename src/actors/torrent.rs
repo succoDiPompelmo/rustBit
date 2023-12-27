@@ -4,10 +4,7 @@ use actix::prelude::*;
 
 use crate::{
     actors::messages::PieceReady,
-    peer::{
-        manager::get_info,
-        piece_pool::PiecePool,
-    },
+    peer::{manager::get_info, piece_pool::PiecePool},
     torrent::info::Info,
     tracker::peer_endpoint::PeerEndpoint,
 };
@@ -173,12 +170,16 @@ impl Handler<PeerFound> for TorrentActor {
 struct Peer {
     endpoint: PeerEndpoint,
     piece_downloaded: usize,
-    piece_failed: usize
+    piece_failed: usize,
 }
 
 impl Peer {
     fn new(endpoint: PeerEndpoint) -> Peer {
-        Peer { endpoint, piece_downloaded: 0, piece_failed: 0 }
+        Peer {
+            endpoint,
+            piece_downloaded: 0,
+            piece_failed: 0,
+        }
     }
 
     fn update_failed(pool: &mut HashMap<String, Peer>, endpoint: String) {

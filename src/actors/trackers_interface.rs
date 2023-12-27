@@ -9,50 +9,38 @@ pub struct TrackersInterfaceActor {
 
 impl TrackersInterfaceActor {
     pub fn new() -> TrackersInterfaceActor {
-        // Start MyActor in current thread
-        let addr1 = TrackerActor {
-            url: Url::parse("udp://93.158.213.92:1337/announce")
-                .ok()
-                .unwrap(),
-        }
-        .start();
-        let addr2 = TrackerActor {
-            url: Url::parse("udp://102.223.180.235:6969/announce")
-                .ok()
-                .unwrap(),
-        }
-        .start();
-        let addr3 = TrackerActor {
-            url: Url::parse("udp://23.134.88.6:1337/announce").ok().unwrap(),
-        }
-        .start();
-        let addr4 = TrackerActor {
-            url: Url::parse("udp://193.189.100.187:6969/announce")
-                .ok()
-                .unwrap(),
-        }
-        .start();
-        let addr5 = TrackerActor {
-            url: Url::parse("udp://185.243.218.213:80/announce")
-                .ok()
-                .unwrap(),
-        }
-        .start();
-        let addr6 = TrackerActor {
-            url: Url::parse("udp://91.216.110.52:451/announce").ok().unwrap(),
-        }
-        .start();
+        let urls = vec![
+            "udp://93.158.213.92:1337/announce",
+            "udp://102.223.180.235:6969/announce",
+            "udp://23.134.88.6:1337/announce",
+            "udp://193.189.100.187:6969/announce",
+            "udp://185.243.218.213:80/announce",
+            "udp://91.216.110.52:451/announce",
+            "udp://208.83.20.20:6969/announce",
+            "udp://23.157.120.14:6969/announce",
+            "udp://156.234.201.18:80/announce",
+            "udp://185.102.219.163:6969/announce",
+            "udp://185.50.159.149:6969/announce",
+            "udp://209.141.59.16:6969/announce",
+            "udp://38.7.201.142:6969/announce",
+            "udp://73.170.204.100:6969/announce",
+            "udp://176.31.250.174:6969/announce",
+            "udp://82.156.24.219:6969/announce",
+            "udp://83.102.180.21:80/announce",
+            "udp://185.230.4.150:1337/announce",
+        ];
+        let mut trackers = vec![];
 
-        TrackersInterfaceActor {
-            trackers: vec![
-                addr1.clone(),
-                addr2.clone(),
-                addr3.clone(),
-                addr4.clone(),
-                addr5.clone(),
-                addr6.clone(),
-            ],
+        for url in urls {
+            let tracker = TrackerActor {
+                url: Url::parse(url).ok().unwrap(),
+            }
+            .start();
+
+            trackers.push(tracker);
         }
+
+        TrackersInterfaceActor { trackers }
     }
 }
 
