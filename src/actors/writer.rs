@@ -10,11 +10,11 @@ pub struct WriterActor;
 impl Actor for WriterActor {
     type Context = SyncContext<Self>;
 
-    fn started(&mut self, ctx: &mut SyncContext<Self>) {
+    fn started(&mut self, _ctx: &mut SyncContext<Self>) {
         println!("WriterActor is alive");
     }
 
-    fn stopped(&mut self, ctx: &mut SyncContext<Self>) {
+    fn stopped(&mut self, _ctx: &mut SyncContext<Self>) {
         println!("WriterActor is stopped");
     }
 }

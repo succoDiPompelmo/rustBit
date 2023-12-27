@@ -3,7 +3,7 @@ use actix::prelude::*;
 use crate::{
     actors::messages::PieceReady,
     peer::{
-        manager::{download, get_info},
+        manager::get_info,
         piece_pool::PiecePool,
     },
     torrent::info::Info,
@@ -45,11 +45,11 @@ impl TorrentActor {
 impl Actor for TorrentActor {
     type Context = Context<Self>;
 
-    fn started(&mut self, ctx: &mut Context<Self>) {
+    fn started(&mut self, _ctx: &mut Context<Self>) {
         println!("Torrent Actor is alive");
     }
 
-    fn stopped(&mut self, ctx: &mut Context<Self>) {
+    fn stopped(&mut self, _ctx: &mut Context<Self>) {
         println!("Torrent Actor is stopped");
     }
 }

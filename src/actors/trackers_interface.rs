@@ -1,11 +1,6 @@
 use actix::prelude::*;
 use url::Url;
 
-use crate::{
-    actors::messages::PeerFound,
-    tracker::{self, peer_endpoint::PeerEndpoint},
-};
-
 use super::{messages::TorrentRegistered, tracker::TrackerActor};
 
 pub struct TrackersInterfaceActor {
@@ -65,11 +60,11 @@ impl TrackersInterfaceActor {
 impl Actor for TrackersInterfaceActor {
     type Context = Context<Self>;
 
-    fn started(&mut self, ctx: &mut Context<Self>) {
+    fn started(&mut self, _ctx: &mut Context<Self>) {
         println!("Tracker Actor is alive");
     }
 
-    fn stopped(&mut self, ctx: &mut Context<Self>) {
+    fn stopped(&mut self, _ctx: &mut Context<Self>) {
         println!("Tracker Actor is stopped");
     }
 }

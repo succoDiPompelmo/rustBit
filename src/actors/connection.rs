@@ -13,11 +13,11 @@ pub struct ConnectionActor;
 impl Actor for ConnectionActor {
     type Context = SyncContext<Self>;
 
-    fn started(&mut self, ctx: &mut SyncContext<Self>) {
+    fn started(&mut self, _ctx: &mut SyncContext<Self>) {
         println!("Torrent Actor is alive");
     }
 
-    fn stopped(&mut self, ctx: &mut SyncContext<Self>) {
+    fn stopped(&mut self, _ctx: &mut SyncContext<Self>) {
         println!("Torrent Actor is stopped");
     }
 }
@@ -25,7 +25,7 @@ impl Actor for ConnectionActor {
 impl Handler<PieceRequested> for ConnectionActor {
     type Result = Result<bool, std::io::Error>;
 
-    fn handle(&mut self, msg: PieceRequested, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: PieceRequested, _ctx: &mut Self::Context) -> Self::Result {
         println!("Start the download of piece {:?}", msg.piece_idx);
 
         match download(msg.endpoint.clone(), &msg.info, msg.piece_idx) {
@@ -37,7 +37,7 @@ impl Handler<PieceRequested> for ConnectionActor {
                     piece_idx: msg.piece_idx,
                 });
             }
-            Err(err) => {
+            Err(_) => {
                 println!("KO");
                 let _ = msg.torrent_actor.do_send(PieceDownloadFailed {
                     endpoint: msg.endpoint,

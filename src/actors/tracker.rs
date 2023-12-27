@@ -16,11 +16,11 @@ pub struct TrackerActor {
 impl Actor for TrackerActor {
     type Context = Context<Self>;
 
-    fn started(&mut self, ctx: &mut Context<Self>) {
+    fn started(&mut self, _ctx: &mut Context<Self>) {
         println!("Tracker Actor is alive");
     }
 
-    fn stopped(&mut self, ctx: &mut Context<Self>) {
+    fn stopped(&mut self, _ctx: &mut Context<Self>) {
         println!("Tracker Actor is stopped");
     }
 }
@@ -28,7 +28,7 @@ impl Actor for TrackerActor {
 impl Handler<TorrentRegistered> for TrackerActor {
     type Result = Result<bool, std::io::Error>;
 
-    fn handle(&mut self, msg: TorrentRegistered, ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, msg: TorrentRegistered, _ctx: &mut Context<Self>) -> Self::Result {
         println!("New torrent found with info hash: {:?}", msg.info_hash);
 
         let result = tracker::get_peers_by_tracker(&self.url, &msg.info_hash);

@@ -7,7 +7,7 @@ mod peer;
 mod torrent;
 mod tracker;
 
-use actors::trackersInterface::TrackersInterfaceActor;
+use actors::trackers_interface::TrackersInterfaceActor;
 use chrono::Local;
 use env_logger::Builder;
 use log::{info, LevelFilter};
