@@ -24,7 +24,7 @@ impl Handler<PieceReady> for WriterActor {
 
     fn handle(&mut self, msg: PieceReady, ctx: &mut Self::Context) -> Self::Result {
         let _ = write(msg.piece, msg.piece_idx, msg.files, msg.piece_length);
-        
+
         Ok(true)
     }
 }

@@ -1,15 +1,20 @@
 use actix::prelude::*;
 
 use crate::{
+    actors::messages::PieceReady,
     peer::{
         manager::{download, get_info},
         piece_pool::PiecePool,
     },
     torrent::info::Info,
-    tracker::peer_endpoint::PeerEndpoint, actors::messages::PieceReady,
+    tracker::peer_endpoint::PeerEndpoint,
 };
 
-use super::{messages::{PeerFound, PieceRequested, PieceDownloadSuccessfull, PieceDownloadFailed}, connection::ConnectionActor, writer::WriterActor};
+use super::{
+    connection::ConnectionActor,
+    messages::{PeerFound, PieceDownloadFailed, PieceDownloadSuccessfull, PieceRequested},
+    writer::WriterActor,
+};
 
 pub struct TorrentActor {
     connections_pool: Addr<ConnectionActor>,
@@ -17,12 +22,11 @@ pub struct TorrentActor {
     pub info_hash: Vec<u8>,
     pub peers: Vec<PeerEndpoint>,
     piece_available_pool: Option<PiecePool>,
-    writers_pool: Addr<WriterActor>
+    writers_pool: Addr<WriterActor>,
 }
 
 impl TorrentActor {
     pub fn new(info_hash: Vec<u8>) -> TorrentActor {
-
         let addr = SyncArbiter::start(5, || ConnectionActor);
         let write_addr = SyncArbiter::start(1, || WriterActor);
 
@@ -32,7 +36,7 @@ impl TorrentActor {
             info_hash,
             peers: vec![],
             piece_available_pool: None,
-            writers_pool: write_addr
+            writers_pool: write_addr,
         }
     }
 }
@@ -56,11 +60,22 @@ impl Handler<PieceDownloadSuccessfull> for TorrentActor {
     fn handle(&mut self, msg: PieceDownloadSuccessfull, ctx: &mut Context<Self>) -> Self::Result {
         println!("Ok piece {:?}", msg.piece_idx);
 
-        let msg_ready = PieceReady {piece: msg.piece, files: self.info.as_ref().unwrap().get_files().unwrap(), piece_idx: msg.piece_idx, piece_length: self.info.as_ref().unwrap().get_piece_length(), torrent_actor: ctx.address()};
+        let msg_ready = PieceReady {
+            piece: msg.piece,
+            files: self.info.as_ref().unwrap().get_files().unwrap(),
+            piece_idx: msg.piece_idx,
+            piece_length: self.info.as_ref().unwrap().get_piece_length(),
+            torrent_actor: ctx.address(),
+        };
         self.writers_pool.do_send(msg_ready);
 
-        if let Some(piece_idx) =self.piece_available_pool.as_mut().unwrap().pop() {
-            let msg = PieceRequested {piece_idx, info: self.info.as_ref().unwrap().clone(), endpoint: msg.endpoint, torrent_actor: ctx.address()};
+        if let Some(piece_idx) = self.piece_available_pool.as_mut().unwrap().pop() {
+            let msg = PieceRequested {
+                piece_idx,
+                info: self.info.as_ref().unwrap().clone(),
+                endpoint: msg.endpoint,
+                torrent_actor: ctx.address(),
+            };
             self.connections_pool.do_send(msg);
         }
 
@@ -72,16 +87,24 @@ impl Handler<PieceDownloadFailed> for TorrentActor {
     type Result = Result<bool, std::io::Error>;
 
     fn handle(&mut self, msg: PieceDownloadFailed, ctx: &mut Context<Self>) -> Self::Result {
-        self.piece_available_pool.as_ref().unwrap().insert(msg.piece_idx);
+        self.piece_available_pool
+            .as_ref()
+            .unwrap()
+            .insert(msg.piece_idx);
 
         println!("Failed piece {:?}", msg.piece_idx);
-        
+
         let endpoint = msg.endpoint.as_str();
 
         for peer in &self.peers {
             if peer.endpoint() != endpoint {
                 if let Some(piece_idx) = self.piece_available_pool.as_mut().unwrap().pop() {
-                    let msg = PieceRequested {piece_idx, info: self.info.as_ref().unwrap().clone(), endpoint: endpoint.to_string(), torrent_actor: ctx.address()};
+                    let msg = PieceRequested {
+                        piece_idx,
+                        info: self.info.as_ref().unwrap().clone(),
+                        endpoint: endpoint.to_string(),
+                        torrent_actor: ctx.address(),
+                    };
                     self.connections_pool.do_send(msg);
                 }
 
@@ -96,7 +119,9 @@ impl Handler<PieceDownloadFailed> for TorrentActor {
 impl Handler<PeerFound> for TorrentActor {
     type Result = Result<bool, std::io::Error>;
 
-    fn handle(&mut self, msg: PeerFound, ctx: &mut Context<Self>) -> Self::Result {        
+    fn handle(&mut self, msg: PeerFound, ctx: &mut Context<Self>) -> Self::Result {
+        println!("{:?}", self.peers);
+
         match &self.info {
             None => {
                 if let Ok(info) = get_info(&self.info_hash, msg.peer.endpoint()) {
@@ -107,12 +132,17 @@ impl Handler<PeerFound> for TorrentActor {
                     self.piece_available_pool = Some(PiecePool::new(piece_count));
 
                     self.info = Some(info);
+                    self.peers.push(msg.peer);
                 };
             }
             Some(info) => {
-                if let Some(piece_idx) =self.piece_available_pool.as_mut().unwrap().pop() {
-
-                    let msg = PieceRequested {piece_idx, info: info.clone(), endpoint: msg.peer.endpoint(), torrent_actor: ctx.address()};
+                if let Some(piece_idx) = self.piece_available_pool.as_mut().unwrap().pop() {
+                    let msg = PieceRequested {
+                        piece_idx,
+                        info: info.clone(),
+                        endpoint: msg.peer.endpoint(),
+                        torrent_actor: ctx.address(),
+                    };
 
                     self.connections_pool.do_send(msg);
                 }

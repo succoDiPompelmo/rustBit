@@ -7,11 +7,10 @@ mod peer;
 mod torrent;
 mod tracker;
 
-use actors::tracker::TrackerActor;
+use actors::trackersInterface::TrackersInterfaceActor;
 use chrono::Local;
 use env_logger::Builder;
 use log::{info, LevelFilter};
-use url::Url;
 
 use std::io::Write;
 use std::{fs::File, sync::Mutex};
@@ -43,13 +42,7 @@ async fn trackers(data: web::Data<AppState>) -> HttpResponse {
         torrent_actor_addr: addr.clone(),
     };
 
-    let background_trackers = data.background_trackers.lock().unwrap();
-
-    for actor in background_trackers.iter() {
-        let _ = actor.try_send(msg.clone());
-    }
-
-    data.background_torrents.lock().unwrap().push(addr.clone());
+    let _ = data.trackers_interface.try_send(msg);
 
     HttpResponse::Ok().body("Test")
 }
@@ -74,37 +67,13 @@ async fn add_magnet(torrent_source: String) -> HttpResponse {
 }
 
 struct AppState {
-    background_trackers: Mutex<Vec<Addr<TrackerActor>>>,
     background_torrents: Mutex<Vec<Addr<TorrentActor>>>,
+    trackers_interface: Addr<TrackersInterfaceActor>,
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    // Start MyActor in current thread
-    let addr1 = TrackerActor {
-        url: Url::parse("udp://93.158.213.92:1337/announce")
-            .ok()
-            .unwrap(),
-    }
-    .start();
-    let addr2 = TrackerActor {
-        url: Url::parse("udp://102.223.180.235:6969/announce")
-            .ok()
-            .unwrap(),
-    }
-    .start();
-    let addr3 = TrackerActor {
-        url: Url::parse("udp://193.189.100.190:6969/announce")
-            .ok()
-            .unwrap(),
-    }
-    .start();
-    let addr4 = TrackerActor {
-        url: Url::parse("udp://185.243.218.213:80/announce")
-            .ok()
-            .unwrap(),
-    }
-    .start();
+    let trackers_interface = TrackersInterfaceActor::new().start();
 
     let target = Box::new(File::create("./test.log").expect("Can't create file"));
     Builder::new()
@@ -125,13 +94,8 @@ async fn main() -> std::io::Result<()> {
         .init();
 
     let state = web::Data::new(AppState {
-        background_trackers: Mutex::new(vec![
-            addr1.clone(),
-            addr2.clone(),
-            addr3.clone(),
-            addr4.clone(),
-        ]),
         background_torrents: Mutex::new(vec![]),
+        trackers_interface,
     });
 
     HttpServer::new(move || {

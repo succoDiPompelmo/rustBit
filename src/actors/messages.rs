@@ -1,6 +1,9 @@
 use actix::prelude::*;
 
-use crate::{tracker::peer_endpoint::PeerEndpoint, torrent::{info::Info, file::File}};
+use crate::{
+    torrent::{file::File, info::Info},
+    tracker::peer_endpoint::PeerEndpoint,
+};
 
 use super::torrent::TorrentActor;
 
@@ -24,14 +27,14 @@ pub struct PeerFound {
 pub struct PieceDownloadSuccessfull {
     pub endpoint: String,
     pub piece: Vec<u8>,
-    pub piece_idx: usize
+    pub piece_idx: usize,
 }
 
 #[derive(Message)]
 #[rtype(result = "Result<bool, std::io::Error>")]
 pub struct PieceDownloadFailed {
     pub endpoint: String,
-    pub piece_idx: usize
+    pub piece_idx: usize,
 }
 
 #[derive(Message)]
@@ -41,7 +44,7 @@ pub struct PieceReady {
     pub files: Vec<File>,
     pub piece_idx: usize,
     pub piece_length: usize,
-    pub torrent_actor: Addr<TorrentActor>
+    pub torrent_actor: Addr<TorrentActor>,
 }
 
 // COMMANDS
@@ -52,5 +55,5 @@ pub struct PieceRequested {
     pub endpoint: String,
     pub info: Info,
     pub piece_idx: usize,
-    pub torrent_actor: Addr<TorrentActor>
+    pub torrent_actor: Addr<TorrentActor>,
 }
