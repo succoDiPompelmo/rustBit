@@ -22,6 +22,7 @@ pub struct TorrentActor {
     peers: Vec<Peer>,
     piece_available_pool: Option<PiecePool>,
     writers_pool: Addr<WriterActor>,
+    initiated: bool
 }
 
 impl TorrentActor {
@@ -36,6 +37,7 @@ impl TorrentActor {
             peers: vec![],
             piece_available_pool: None,
             writers_pool: write_addr,
+            initiated: false
         }
     }
 }
@@ -133,15 +135,23 @@ impl Handler<PeerFound> for TorrentActor {
                 };
             }
             Some(info) => {
-                if let Some(piece_idx) = self.piece_available_pool.as_mut().unwrap().pop() {
-                    let msg = PieceRequested {
-                        piece_idx,
-                        info: info.clone(),
-                        endpoint: msg.peer.endpoint(),
-                        torrent_actor: ctx.address(),
-                    };
 
-                    self.connections_pool.do_send(msg);
+                if self.peers.len() > 10 && !self.initiated {
+                    for _ in 0..5 {
+                        let endpoint = Peer::find_suitable_peer(self.peers.to_vec());
+
+                        if let Some(piece_idx) = self.piece_available_pool.as_mut().unwrap().pop() {
+                            let msg = PieceRequested {
+                                piece_idx,
+                                info: info.clone(),
+                                endpoint,
+                                torrent_actor: ctx.address(),
+                            };
+        
+                            self.connections_pool.do_send(msg);
+                            self.initiated = true;
+                        }
+                    }
                 }
             }
         }
@@ -187,14 +197,12 @@ impl Peer {
         
         for peer in &pool {
             if peer.piece_failed < 2 {
-                println!("Selected endpoint {:?}", peer);
                 return peer.endpoint.to_owned();
             }
         }
 
         for peer in &pool {
             if peer.piece_failed < 4 {
-                println!("Selected endpoint {:?}", peer);
                 return peer.endpoint.to_owned();
             }
         }
