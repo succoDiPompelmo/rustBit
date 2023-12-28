@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use actix::prelude::*;
 
 use crate::{
@@ -14,12 +12,14 @@ use super::{
     writer::WriterActor,
 };
 
+use rand::thread_rng;
+use rand::seq::SliceRandom;
+
 pub struct TorrentActor {
     connections_pool: Addr<ConnectionActor>,
     pub info: Option<Info>,
     pub info_hash: Vec<u8>,
     peers: Vec<Peer>,
-    peers_evo: HashMap<String, Peer>,
     piece_available_pool: Option<PiecePool>,
     writers_pool: Addr<WriterActor>,
 }
@@ -34,7 +34,6 @@ impl TorrentActor {
             info: None,
             info_hash,
             peers: vec![],
-            peers_evo: HashMap::new(),
             piece_available_pool: None,
             writers_pool: write_addr,
         }
@@ -70,7 +69,7 @@ impl Handler<PieceDownloadSuccessfull> for TorrentActor {
         self.writers_pool.do_send(msg_ready);
 
         let endpoint = msg.endpoint;
-        Peer::update_sucess(&mut self.peers_evo, endpoint.clone());
+        Peer::update_sucess(&mut self.peers, endpoint.clone());
 
         if let Some(piece_idx) = self.piece_available_pool.as_mut().unwrap().pop() {
             let msg = PieceRequested {
@@ -96,22 +95,18 @@ impl Handler<PieceDownloadFailed> for TorrentActor {
             .insert(msg.piece_idx);
 
         let endpoint = msg.endpoint.as_str();
-        Peer::update_failed(&mut self.peers_evo, endpoint.to_string());
+        Peer::update_failed(&mut self.peers, endpoint.to_string());
 
-        for peer in &self.peers {
-            if peer.endpoint != endpoint {
-                if let Some(piece_idx) = self.piece_available_pool.as_mut().unwrap().pop() {
-                    let msg = PieceRequested {
-                        piece_idx,
-                        info: self.info.as_ref().unwrap().clone(),
-                        endpoint: peer.endpoint.to_string(),
-                        torrent_actor: ctx.address(),
-                    };
-                    self.connections_pool.do_send(msg);
-                }
+        let endpoint = Peer::find_suitable_peer(self.peers.to_vec());
 
-                break;
-            }
+        if let Some(piece_idx) = self.piece_available_pool.as_mut().unwrap().pop() {
+            let msg = PieceRequested {
+                piece_idx,
+                info: self.info.as_ref().unwrap().clone(),
+                endpoint,
+                torrent_actor: ctx.address(),
+            };
+            self.connections_pool.do_send(msg);
         }
 
         Ok(true)
@@ -148,11 +143,6 @@ impl Handler<PeerFound> for TorrentActor {
 
                     self.connections_pool.do_send(msg);
                 }
-
-                let endpoint = msg.peer.endpoint();
-                let peer = Peer::new(msg.peer.endpoint());
-
-                self.peers_evo.insert(endpoint, peer.clone());
             }
         }
 
@@ -176,15 +166,40 @@ impl Peer {
         }
     }
 
-    fn update_failed(pool: &mut HashMap<String, Peer>, endpoint: String) {
-        if let Some(data) = pool.get_mut(&endpoint) {
-            data.piece_failed += 1;
+    fn update_failed(pool: &mut Vec<Peer>, endpoint: String) {
+        for peer in pool {
+            if peer.endpoint == endpoint {
+                peer.piece_failed += 1;
+            }
         }
     }
 
-    fn update_sucess(pool: &mut HashMap<String, Peer>, endpoint: String) {
-        if let Some(data) = pool.get_mut(&endpoint) {
-            data.piece_downloaded += 1;
+    fn update_sucess(pool: &mut Vec<Peer>, endpoint: String) {
+        for peer in pool {
+            if peer.endpoint == endpoint {
+                peer.piece_downloaded += 1;
+            }
         }
+    }
+
+    fn find_suitable_peer(mut pool: Vec<Peer>) -> String {
+        pool.shuffle(&mut thread_rng());
+        
+        for peer in &pool {
+            if peer.piece_failed < 2 {
+                println!("Selected endpoint {:?}", peer);
+                return peer.endpoint.to_owned();
+            }
+        }
+
+        for peer in &pool {
+            if peer.piece_failed < 4 {
+                println!("Selected endpoint {:?}", peer);
+                return peer.endpoint.to_owned();
+            }
+        }
+
+
+        return pool.first().unwrap().endpoint.to_owned()
     }
 }
