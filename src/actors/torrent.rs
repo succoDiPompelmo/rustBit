@@ -1,3 +1,7 @@
+use std::{fs::File, io::Read};
+
+use log::info;
+
 use actix::prelude::*;
 
 use crate::{
@@ -124,6 +128,27 @@ impl Handler<PeerFound> for TorrentActor {
 
         match &self.info {
             None => {
+                let filename = urlencoding::encode_binary(&self.info_hash).into_owned();
+                let file_path = format!("./downloads/{filename}");
+                std::fs::create_dir_all("./downloads").unwrap();
+
+                if let Ok(mut info_file) = File::open(&file_path) {
+                    info!("Torrent info from file: {:?}", filename);
+                    let mut info_buffer = "".to_string();
+                    info_file.read_to_string(&mut info_buffer).unwrap();
+
+                    let info: Info = serde_json::from_str(&info_buffer).unwrap();
+
+                    let piece_count = (0..info.get_total_length())
+                        .step_by(info.get_piece_length())
+                        .len();
+
+                    self.piece_available_pool = Some(PiecePool::new(piece_count));
+                    self.info = Some(info);
+
+                    return Ok(true)
+                }
+
                 if let Ok(info) = get_info(&self.info_hash, msg.peer.endpoint()) {
                     let piece_count = (0..info.get_total_length())
                         .step_by(info.get_piece_length())
@@ -131,7 +156,10 @@ impl Handler<PeerFound> for TorrentActor {
 
                     self.piece_available_pool = Some(PiecePool::new(piece_count));
 
+                    serde_json::to_writer(&File::create(&file_path).unwrap(), &info).unwrap();
                     self.info = Some(info);
+
+                    return Ok(true)
                 };
             }
             Some(info) => {
