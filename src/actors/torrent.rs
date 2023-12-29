@@ -81,7 +81,7 @@ impl Handler<PieceDownloadSuccessfull> for TorrentActor {
             let msg = PieceRequested {
                 piece_idx,
                 info: self.info.as_ref().unwrap().clone(),
-                endpoint: endpoint,
+                endpoint,
                 torrent_actor: ctx.address(),
             };
             self.connections_pool.do_send(msg);
@@ -146,7 +146,7 @@ impl Handler<PeerFound> for TorrentActor {
                     self.piece_available_pool = Some(PiecePool::new(piece_count));
                     self.info = Some(info);
 
-                    return Ok(true)
+                    return Ok(true);
                 }
 
                 if let Ok(info) = get_info(&self.info_hash, msg.peer.endpoint()) {
@@ -159,7 +159,7 @@ impl Handler<PeerFound> for TorrentActor {
                     serde_json::to_writer(&File::create(&file_path).unwrap(), &info).unwrap();
                     self.info = Some(info);
 
-                    return Ok(true)
+                    return Ok(true);
                 };
             }
             Some(info) => {

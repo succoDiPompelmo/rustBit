@@ -28,23 +28,6 @@ pub enum InfoError {
 }
 
 impl Info {
-    #[cfg(test)]
-    pub fn new(
-        files: Option<Vec<File>>,
-        length: Option<usize>,
-        name: String,
-        piece_length: usize,
-        pieces: Vec<u8>,
-    ) -> Info {
-        Info {
-            files,
-            length,
-            name,
-            piece_length,
-            pieces,
-        }
-    }
-
     pub fn from_bytes(bytes: Vec<u8>) -> Result<Info, InfoError> {
         let decoded_info = Decoder::init(bytes).decode()?;
         Info::from_metainfo(&decoded_info)

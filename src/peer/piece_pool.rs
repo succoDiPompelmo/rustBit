@@ -30,6 +30,7 @@ impl PiecePool {
         }
     }
 
+    #[cfg(test)]
     pub fn is_emtpy(&self) -> bool {
         match self.pool().lock() {
             Ok(piece_pool) => piece_pool.is_empty(),

@@ -24,14 +24,14 @@ impl Handler<PieceRequested> for ConnectionActor {
     fn handle(&mut self, msg: PieceRequested, _ctx: &mut Self::Context) -> Self::Result {
         match download(msg.endpoint.clone(), &msg.info, msg.piece_idx) {
             Ok(piece) => {
-                let _ = msg.torrent_actor.do_send(PieceDownloadSuccessfull {
+                msg.torrent_actor.do_send(PieceDownloadSuccessfull {
                     endpoint: msg.endpoint.clone(),
                     piece,
                     piece_idx: msg.piece_idx,
                 });
             }
             Err(_) => {
-                let _ = msg.torrent_actor.do_send(PieceDownloadFailed {
+                msg.torrent_actor.do_send(PieceDownloadFailed {
                     endpoint: msg.endpoint,
                     piece_idx: msg.piece_idx,
                 });

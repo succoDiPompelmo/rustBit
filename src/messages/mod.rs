@@ -155,7 +155,7 @@ pub fn new_metadata(extension_id: u8, index: usize) -> Message {
         .to_vec();
     let length = (data.len() + 1 + 1) as u32;
     let extension = ContentType::Extension(
-        ExtensionMessage::from_bytes(&vec![vec![extension_id], data].concat()).unwrap(),
+        ExtensionMessage::from_bytes(&[vec![extension_id], data].concat()).unwrap(),
     );
     Message::new(extension, length, 20)
 }

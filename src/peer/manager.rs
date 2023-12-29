@@ -1,13 +1,10 @@
 use log::info;
 
-use crate::common::thread_pool::ThreadPool;
 use crate::messages::{new_handshake, new_interested};
 use crate::peer::Peer;
 use crate::torrent::info::{Info, InfoError};
-use crate::torrent::writer::write;
 
 use super::download::{Downloadable, DownloadableError};
-use super::piece_pool::PiecePool;
 use super::stream::{StreamError, StreamInterface};
 
 #[derive(thiserror::Error, Debug, Clone, PartialEq)]
@@ -18,8 +15,6 @@ pub enum PeerManagerError {
     HandshakeMetadata(),
     #[error("Peer not ready")]
     PeerNotReady(),
-    #[error("No more pieces to download")]
-    NoMorePieces(),
     #[error("Unsuccessfull piece download: {0}")]
     PieceDownloadFailure(String),
     #[error("Unsuccessfull piece verification")]
@@ -56,49 +51,6 @@ impl Context {
             piece_idx,
             endpoint,
         }
-    }
-}
-
-pub fn peer_thread(
-    endpoint: String,
-    info: Info,
-    pool: PiecePool,
-    writers: ThreadPool,
-) -> Result<(), PeerManagerError> {
-    // Avoid establish a tcp connection if there are no pieces to download
-    if pool.is_emtpy() {
-        return Err(PeerManagerError::NoMorePieces());
-    }
-
-    let stream = StreamInterface::connect(&endpoint, false)?;
-    let mut peer = Peer::new(stream, &info.compute_info_hash());
-    init_peer(&mut peer)?;
-
-    let piece_length = info.get_piece_length();
-
-    loop {
-        let piece_idx = pool.pop().ok_or(PeerManagerError::NoMorePieces())?;
-        let ctx = Context::new(peer.get_peer_id(), piece_idx, endpoint.to_owned());
-
-        track_progress(PieceEventType::StartDownload(), &ctx);
-
-        let block = Downloadable::Block((piece_length, piece_idx, info.get_total_length()));
-        let piece = block.download(&mut peer).map_err(|err| {
-            pool.insert(piece_idx);
-            PeerManagerError::PieceDownloadFailure(err.to_string())
-        })?;
-        track_progress(PieceEventType::CompleteDownload(), &ctx);
-
-        if !info.verify_piece(&piece, piece_idx) {
-            pool.insert(piece_idx);
-            return Err(PeerManagerError::PieceVerificationFailure());
-        }
-
-        let files = info.get_files()?;
-        writers.execute(move || {
-            write(piece, piece_idx, files.to_vec(), piece_length)?;
-            Ok(())
-        });
     }
 }
 
@@ -144,7 +96,8 @@ fn init_peer(peer: &mut Peer) -> Result<(), PeerManagerError> {
         .map_err(|_| PeerManagerError::HandshakeMetadata())?;
 
     for _ in 0..10 {
-        peer.read_message()
+        let _ = peer
+            .read_message()
             .map_or((), |msg| peer.apply_message(&msg));
 
         if peer.is_ready() {

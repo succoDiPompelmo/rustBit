@@ -22,7 +22,7 @@ impl Actor for WriterActor {
 impl Handler<PieceReady> for WriterActor {
     type Result = Result<bool, std::io::Error>;
 
-    fn handle(&mut self, msg: PieceReady, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: PieceReady, _ctx: &mut Self::Context) -> Self::Result {
         let _ = write(msg.piece, msg.piece_idx, msg.files, msg.piece_length);
 
         Ok(true)
