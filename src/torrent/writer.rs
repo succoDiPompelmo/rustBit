@@ -48,7 +48,6 @@ impl FileWriter {
 
         let file = fs::OpenOptions::new()
             .write(true)
-            .append(true)
             .create(true)
             .open(path)
             .unwrap();
@@ -151,6 +150,24 @@ pub fn get_file_writers(
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn proviamoci() {
+        let _ = std::fs::remove_file("prova.txt");
+
+        let piece_0: Vec<u8> = vec![0, 0, 0, 0, 0, 0];
+        let piece_1: Vec<u8> = vec![1, 1, 1, 1, 1, 1];
+        let writer_0 = FileWriter::new(vec!["prova.txt".to_owned()], 0, 6, piece_0);
+        let writer_1 = FileWriter::new(vec!["prova.txt".to_owned()], 6, 12, piece_1);
+
+        writer_1.write_to_filesystem();
+        writer_0.write_to_filesystem();
+
+        let output = std::fs::read("prova.txt").unwrap();
+        assert_eq!(output, vec![0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1]);
+
+        let _ = std::fs::remove_file("prova.txt");
+    }
 
     #[test]
     fn test_single_file_single_writer() {
