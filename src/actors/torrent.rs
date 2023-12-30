@@ -50,11 +50,9 @@ impl TorrentActor {
 impl Actor for TorrentActor {
     type Context = Context<Self>;
 
-    fn started(&mut self, _ctx: &mut Context<Self>) {
-    }
+    fn started(&mut self, _ctx: &mut Context<Self>) {}
 
-    fn stopped(&mut self, _ctx: &mut Context<Self>) {
-    }
+    fn stopped(&mut self, _ctx: &mut Context<Self>) {}
 }
 
 impl Handler<PieceDownloadSuccessfull> for TorrentActor {

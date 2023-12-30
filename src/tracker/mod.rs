@@ -23,7 +23,7 @@ pub enum TrackerError {
     ProtocolNotSupported(String),
 }
 
-pub fn get_peers_by_tracker(
+pub async fn get_peers_by_tracker(
     tracker: &Url,
     info_hash: &[u8],
 ) -> Result<Vec<PeerEndpoint>, TrackerError> {
@@ -32,7 +32,7 @@ pub fn get_peers_by_tracker(
     // A tracker response struct with a get_peers method bound to a trait could be useful here ?
     let response = match tracker.scheme() {
         "http" => tcp_tracker::call(info_hash, peer_id, tracker)?,
-        "udp" => udp_tracker::call(info_hash, peer_id, tracker)?,
+        "udp" => udp_tracker::call(info_hash, peer_id, tracker).await?,
         scheme => Err(TrackerError::ProtocolNotSupported(scheme.to_string()))?,
     };
 

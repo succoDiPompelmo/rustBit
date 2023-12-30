@@ -24,16 +24,23 @@ impl Actor for TrackerActor {
 impl Handler<TorrentRegistered> for TrackerActor {
     type Result = Result<bool, std::io::Error>;
 
-    fn handle(&mut self, msg: TorrentRegistered, _ctx: &mut Context<Self>) -> Self::Result {
-        let result = tracker::get_peers_by_tracker(&self.url, &msg.info_hash);
+    fn handle(&mut self, msg: TorrentRegistered, ctx: &mut Context<Self>) -> Self::Result {
+        let url = self.url.clone();
 
-        if let Ok(peers) = result {
-            for peer in peers {
-                if PeerEndpoint::is_reachable(&peer.endpoint()) {
-                    msg.torrent_actor_addr.do_send(PeerFound { peer });
+        async move {
+            let result = tracker::get_peers_by_tracker(&url, &msg.info_hash).await;
+
+            if let Ok(peers) = result {
+                println!("Eccoli i peers {:?}", peers);
+                for peer in peers {
+                    if PeerEndpoint::is_reachable(&peer.endpoint()) {
+                        msg.torrent_actor_addr.do_send(PeerFound { peer });
+                    }
                 }
             }
         }
+        .into_actor(self)
+        .spawn(ctx);
 
         Ok(true)
     }

@@ -1,5 +1,4 @@
-use std::net::UdpSocket;
-use std::time::Duration;
+use tokio::net::UdpSocket;
 
 use url::Url;
 
@@ -9,8 +8,6 @@ pub enum UdpTrackerError {
     PostMissing(),
     #[error("Tracker missing hostname")]
     HostnameMissing(),
-    #[error("Error setting the timeout")]
-    SetTimeoutError(),
     #[error("Wrong response size less than 26 bytes")]
     WrongResponseSize(),
     #[error("No connection established with udp tracker")]
@@ -21,12 +18,14 @@ pub enum UdpTrackerError {
     SendError(),
 }
 
-pub fn call(
+pub async fn call(
     info_hash: &[u8],
     peer_id: &str,
     tracker_url: &Url,
 ) -> Result<Vec<u8>, UdpTrackerError> {
-    let socket = UdpSocket::bind("0.0.0.0:34222").expect("couldn't bind to address");
+    let socket = UdpSocket::bind("0.0.0.0:0")
+        .await
+        .expect("couldn't bind to address");
     let tracker_hostname = format!(
         "{}:{}",
         tracker_url
@@ -35,8 +34,13 @@ pub fn call(
         tracker_url.port().ok_or(UdpTrackerError::PostMissing())?
     );
 
+    socket
+        .connect(tracker_hostname.clone())
+        .await
+        .expect("Panico");
+
     let transaction_id: &[u8] = &[0x00, 0x01, 0x19, 0x9e];
-    let connection_id = connect_to_tracker(transaction_id, &socket, &tracker_hostname)?;
+    let connection_id = connect_to_tracker(transaction_id, &socket).await?;
 
     let message = &make_announce_message(
         transaction_id,
@@ -44,15 +48,10 @@ pub fn call(
         peer_id.as_bytes(),
         info_hash,
     );
-    send_upd_packet(&socket, message, &tracker_hostname)?;
+    send_upd_packet(&socket, message).await?;
 
-    socket
-        .set_read_timeout(Some(Duration::new(3, 0)))
-        .map_err(|_| UdpTrackerError::SetTimeoutError())?;
     let mut annouce_buf: [u8; 4000] = [0x00; 4000];
-
-    let resp_size = read_upd_packet(&socket, &mut annouce_buf)?;
-
+    let resp_size = read_upd_packet(&socket, &mut annouce_buf).await?;
     if resp_size > 26 {
         return Ok(annouce_buf[20..resp_size].to_vec());
     }
@@ -60,21 +59,20 @@ pub fn call(
     Err(UdpTrackerError::WrongResponseSize())
 }
 
-fn connect_to_tracker(
+async fn connect_to_tracker(
     transaction_id: &[u8],
     socket: &UdpSocket,
-    tracker_hostname: &str,
 ) -> Result<Vec<u8>, UdpTrackerError> {
     let message = &make_connection_message(transaction_id);
 
     let mut buf: [u8; 16] = [0x00; 16];
 
     for retry in 1..5 {
-        if send_upd_packet(socket, message, tracker_hostname).is_err() {
+        if send_upd_packet(socket, message).await.is_err() {
             log::error!("Send udp connect packet failed, retry number {}", retry);
         };
 
-        if read_upd_packet(socket, &mut buf).is_ok() {
+        if read_upd_packet(socket, &mut buf).await.is_ok() {
             return Ok(buf[8..].to_vec());
         }
     }
@@ -82,24 +80,17 @@ fn connect_to_tracker(
     Err(UdpTrackerError::NoConnectionEstablished())
 }
 
-fn read_upd_packet(socket: &UdpSocket, buffer: &mut [u8]) -> Result<usize, UdpTrackerError> {
-    socket
-        .set_read_timeout(Some(Duration::from_millis(200)))
-        .map_err(|_| UdpTrackerError::SetTimeoutError())?;
-
+async fn read_upd_packet(socket: &UdpSocket, buffer: &mut [u8]) -> Result<usize, UdpTrackerError> {
     let (resp_size, _) = socket
         .recv_from(buffer)
+        .await
         .map_err(|_| UdpTrackerError::RecieveError())?;
 
     Ok(resp_size)
 }
 
-fn send_upd_packet(
-    socket: &UdpSocket,
-    message: &[u8],
-    hostname: &str,
-) -> Result<(), UdpTrackerError> {
-    match socket.send_to(message, hostname) {
+async fn send_upd_packet(socket: &UdpSocket, message: &[u8]) -> Result<(), UdpTrackerError> {
+    match socket.send(message).await {
         Ok(_) => Ok(()),
         Err(_) => Err(UdpTrackerError::SendError()),
     }
