@@ -1,5 +1,10 @@
 use std::cmp;
 use std::fs;
+
+#[cfg(target_family = "unix")]
+use std::os::unix::prelude::FileExt;
+
+#[cfg(target_family = "windows")]
 use std::os::windows::prelude::FileExt;
 
 use crate::torrent::file::File;
