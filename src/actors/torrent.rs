@@ -51,11 +51,9 @@ impl Actor for TorrentActor {
     type Context = Context<Self>;
 
     fn started(&mut self, _ctx: &mut Context<Self>) {
-        println!("Torrent Actor is alive");
     }
 
     fn stopped(&mut self, _ctx: &mut Context<Self>) {
-        println!("Torrent Actor is stopped");
     }
 }
 
@@ -63,8 +61,6 @@ impl Handler<PieceDownloadSuccessfull> for TorrentActor {
     type Result = Result<bool, std::io::Error>;
 
     fn handle(&mut self, msg: PieceDownloadSuccessfull, ctx: &mut Context<Self>) -> Self::Result {
-        println!("Ok piece {:?}", msg.piece_idx);
-
         let msg_ready = PieceReady {
             piece: msg.piece,
             files: self.info.as_ref().unwrap().get_files().unwrap(),
@@ -123,7 +119,6 @@ impl Handler<PeerFound> for TorrentActor {
     type Result = Result<bool, std::io::Error>;
 
     fn handle(&mut self, msg: PeerFound, ctx: &mut Context<Self>) -> Self::Result {
-        println!("Found {:?} peers", self.peers.len());
         self.peers.push(Peer::new(msg.peer.endpoint()));
 
         match &self.info {

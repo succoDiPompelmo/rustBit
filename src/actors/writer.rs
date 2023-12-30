@@ -11,11 +11,9 @@ impl Actor for WriterActor {
     type Context = SyncContext<Self>;
 
     fn started(&mut self, _ctx: &mut SyncContext<Self>) {
-        println!("WriterActor is alive");
     }
 
     fn stopped(&mut self, _ctx: &mut SyncContext<Self>) {
-        println!("WriterActor is stopped");
     }
 }
 

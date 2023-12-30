@@ -62,11 +62,11 @@ where
     let mut idle_count = 0;
 
     loop {
-        peer.read_message().map_or((), |msg| {
-            peer.apply_message(&msg);
-            buffer.push_message(msg);
+        if let Some(message) = peer.read_message() {
+            peer.apply_message(&message);
+            buffer.push_message(message);
             idle_count = 0;
-        });
+        }
 
         if buffer.is_full() {
             return Ok(buffer.assemble_content());

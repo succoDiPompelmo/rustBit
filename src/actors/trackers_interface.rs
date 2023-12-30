@@ -49,11 +49,9 @@ impl Actor for TrackersInterfaceActor {
     type Context = Context<Self>;
 
     fn started(&mut self, _ctx: &mut Context<Self>) {
-        println!("Tracker Actor is alive");
     }
 
     fn stopped(&mut self, _ctx: &mut Context<Self>) {
-        println!("Tracker Actor is stopped");
     }
 }
 
@@ -61,8 +59,6 @@ impl Handler<TorrentRegistered> for TrackersInterfaceActor {
     type Result = Result<bool, std::io::Error>;
 
     fn handle(&mut self, msg: TorrentRegistered, _ctx: &mut Context<Self>) -> Self::Result {
-        println!("New torrent found with info hash: {:?}", msg.info_hash);
-
         for actor in self.trackers.iter() {
             let _ = actor.try_send(msg.clone());
         }

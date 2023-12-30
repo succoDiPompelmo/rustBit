@@ -1,4 +1,4 @@
-use log::info;
+use log::{debug, error, info};
 
 use crate::messages::{new_handshake, new_interested};
 use crate::peer::Peer;
@@ -84,8 +84,10 @@ pub fn download(
 
 fn init_peer(peer: &mut Peer) -> Result<(), PeerManagerError> {
     peer.send_message(new_handshake(&peer.get_info_hash(), &peer.get_peer_id()));
-    peer.read_message()
-        .map_or((), |msg| peer.apply_message(&msg));
+    match peer.read_message() {
+        Some(message) => peer.apply_message(&message),
+        None => debug!("No message available to read"),
+    }
 
     if !peer.is_active() {
         return Err(PeerManagerError::Handshake());
