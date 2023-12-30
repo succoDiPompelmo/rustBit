@@ -57,6 +57,10 @@ impl FileWriter {
             .open(path)
             .unwrap();
 
+        #[cfg(target_family = "unix")]
+        file.write_at(&self.piece, self.start as u64).unwrap();
+        
+        #[cfg(target_family = "windows")]
         file.seek_write(&self.piece, self.start as u64).unwrap();
     }
 }
