@@ -31,7 +31,6 @@ impl Handler<TorrentRegistered> for TrackerActor {
             let result = tracker::get_peers_by_tracker(&url, &msg.info_hash).await;
 
             if let Ok(peers) = result {
-                println!("Eccoli i peers {:?}", peers);
                 for peer in peers {
                     if PeerEndpoint::is_reachable(&peer.endpoint()) {
                         msg.torrent_actor_addr.do_send(PeerFound { peer });

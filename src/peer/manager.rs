@@ -98,9 +98,10 @@ fn init_peer(peer: &mut Peer) -> Result<(), PeerManagerError> {
         .map_err(|_| PeerManagerError::HandshakeMetadata())?;
 
     for _ in 0..10 {
-        let _ = peer
-            .read_message()
-            .map_or((), |msg| peer.apply_message(&msg));
+        match peer.read_message() {
+            Some(message) => peer.apply_message(&message),
+            None => debug!("No message available to read"),
+        }
 
         if peer.is_ready() {
             return Ok(());

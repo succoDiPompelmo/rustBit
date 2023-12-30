@@ -4,6 +4,7 @@ mod udp_tracker;
 
 use crate::common::generator::generate_peer_id;
 
+use log::info;
 use url::Url;
 
 use self::{
@@ -35,6 +36,9 @@ pub async fn get_peers_by_tracker(
         "udp" => udp_tracker::call(info_hash, peer_id, tracker).await?,
         scheme => Err(TrackerError::ProtocolNotSupported(scheme.to_string()))?,
     };
+
+    let peers = PeerEndpoint::from_bytes(&response);
+    info!("Found {:?} peers from tracker {:?}", peers.len(), tracker);
 
     Ok(PeerEndpoint::from_bytes(&response))
 }
