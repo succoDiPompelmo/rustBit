@@ -22,7 +22,6 @@ pub enum DecoderError {
     BadStringFromBytes(usize),
 }
 
-// Starting from here we should use Error types instead of strings.
 impl Decoder {
     pub fn init(source: Vec<u8>) -> Decoder {
         Decoder {
