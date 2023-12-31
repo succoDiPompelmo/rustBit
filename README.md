@@ -1,7 +1,7 @@
 # rust_bit
 
-![CI](https://github.com/succoDiPompelmo/rustBit/blob/main/.github/workflows/rust.yml/badge.svg)
-![clippy](https://github.com/succoDiPompelmo/rustBit/blob/main/.github/workflows/rust-clippy.yml/badge.svg)
+![CI](https://github.com/succoDiPompelmo/rustBit/actions/workflows/rust.yml/badge.svg)
+![clippy](https://github.com/succoDiPompelmo/rustBit/actions/workflows/rust-clippy.yml/badge.svg)
 
 Toy project of a BitTorrent client implementation. I was curious to see how hard could be to build a BitTorrent client from scratch.
 
