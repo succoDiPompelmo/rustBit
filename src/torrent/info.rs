@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
 
-use log::error;
+use std::io::Read;
+
+use log::{error, info};
 
 use crate::bencode::decode::{Decoder, DecoderError};
 use crate::bencode::encode::{encode_dict_entry, Encode};
@@ -25,6 +27,8 @@ pub enum InfoError {
     DecoderError(#[from] DecoderError),
     #[error("No file length specified")]
     NoFileLenght(),
+    #[error("No info file found at {0}")]
+    NoInfoFile(String),
 }
 
 impl Info {
@@ -51,6 +55,38 @@ impl Info {
             files,
             length,
         })
+    }
+
+    pub fn from_file(file_path: &str) -> Result<Info, InfoError> {
+        if let Ok(mut info_file) = std::fs::File::open(file_path) {
+            info!("Torrent info found in file: {:?}", file_path);
+            let mut info_buffer = "".to_string();
+            if let Err(err) = info_file.read_to_string(&mut info_buffer) {
+                error!(
+                    "Caught error {:?} while reading torrent info from file: {:?}",
+                    err, file_path
+                );
+                return Err(InfoError::NoInfoFile(file_path.to_owned()));
+            }
+
+            let info: Info = serde_json::from_str(&info_buffer).unwrap();
+
+            return Ok(info);
+        }
+
+        Err(InfoError::NoInfoFile(file_path.to_owned()))
+    }
+
+    pub fn save(&self, file_path: &str) -> Result<(), InfoError> {
+        if let Err(err) = serde_json::to_writer(&std::fs::File::create(file_path).unwrap(), self) {
+            error!(
+                "Caught error {:?} while saving the info to file {:?}",
+                err, file_path
+            );
+            return Err(InfoError::NoInfoFile(file_path.to_owned()));
+        };
+
+        Ok(())
     }
 
     pub fn get_piece(&self, index: usize) -> &[u8] {

@@ -27,8 +27,8 @@ pub enum PeerManagerError {
     Download(#[from] DownloadableError),
 }
 
-pub fn get_info(info_hash: &[u8], endpoint: String) -> Result<Info, PeerManagerError> {
-    let stream = StreamInterface::connect(&endpoint, false)?;
+pub fn get_info(info_hash: &[u8], endpoint: &str) -> Result<Info, PeerManagerError> {
+    let stream = StreamInterface::connect(endpoint, false)?;
     let mut peer = Peer::new(stream, info_hash);
 
     init_peer(&mut peer)?;
